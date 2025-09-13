@@ -204,6 +204,91 @@ app.post('/upload-direct', upload.single('photo'), (req, res) => {
     }
 });
 
+// Transcription endpoint for teacher notes
+app.post('/transcription', (req, res) => {
+    console.log('🎤 Transcription received');
+    
+    try {
+        const { text, userId, timestamp, type } = req.body;
+        
+        if (!text || !userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: text and userId'
+            });
+        }
+        
+        // Create transcriptions directory if it doesn't exist
+        const transcriptionsDir = path.join(__dirname, 'transcriptions');
+        if (!fs.existsSync(transcriptionsDir)) {
+            fs.mkdirSync(transcriptionsDir, { recursive: true });
+        }
+        
+        // Create daily log file entry
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dailyLogFile = path.join(transcriptionsDir, `${dateStr}-${userId}.log`);
+        const logEntry = `[${timestamp || now.toISOString()}] ${text}\n`;
+        
+        // Append to daily log file
+        fs.appendFileSync(dailyLogFile, logEntry);
+        
+        console.log(`✅ Transcription saved: "${text.substring(0, 50)}..." to daily log`);
+        
+        res.json({
+            success: true,
+            message: 'Transcription saved to daily log',
+            dailyLog: `${dateStr}-${userId}.log`
+        });
+        
+    } catch (error) {
+        console.error('💥 Transcription save error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save transcription',
+            error: error.message
+        });
+    }
+});
+
+// Get transcriptions for a user (from .log files)
+app.get('/transcriptions/:userId?', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const transcriptionsDir = path.join(__dirname, 'transcriptions');
+        
+        if (!fs.existsSync(transcriptionsDir)) {
+            return res.json({ success: true, transcriptions: [] });
+        }
+        
+        const files = fs.readdirSync(transcriptionsDir);
+        let logFiles = files.filter(file => file.endsWith('.log'));
+        
+        // Filter by userId if provided
+        if (userId) {
+            logFiles = logFiles.filter(file => file.includes(userId));
+        }
+        
+        const transcriptions = logFiles.map(file => {
+            const filepath = path.join(transcriptionsDir, file);
+            const content = fs.readFileSync(filepath, 'utf8');
+            return {
+                filename: file,
+                content: content,
+                lines: content.split('\n').filter(line => line.trim())
+            };
+        });
+        
+        res.json({ success: true, transcriptions });
+    } catch (error) {
+        console.error('Error reading transcriptions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to read transcriptions'
+        });
+    }
+});
+
 // Basic route
 app.get('/', (req, res) => {
     res.json({ 
@@ -212,7 +297,9 @@ app.get('/', (req, res) => {
             upload: 'POST /upload (API method)',
             'upload-direct': 'POST /upload-direct (Direct save method)',
             photos: 'GET /photos',
-            'glass-photos': 'GET /glass-photos'
+            'glass-photos': 'GET /glass-photos',
+            transcription: 'POST /transcription (Teacher notes)',
+            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)'
         }
     });
 });
