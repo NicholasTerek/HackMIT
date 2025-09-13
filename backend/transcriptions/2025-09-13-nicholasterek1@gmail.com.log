@@ -38,3 +38,149 @@
 [2025-09-13T22:27:59.491Z] Fire.
 [2025-09-13T22:28:01.242Z] Oh my God, I need to try this off.
 [2025-09-13T22:41:30.912Z] Testing, testing.
+[2025-09-13T23:23:29.142Z] Mic test. My own. Okay.
+[2025-09-13T23:23:59.981Z] I just-- Quick question, at what point--
+[2025-09-13T23:24:04.371Z] Unless I'm misremembering, I got to a point where you could change like the resolution on the camera?
+[2025-09-13T23:24:06.972Z] So we do have that.
+[2025-09-13T23:24:07.990Z] And the documentation?
+[2025-09-13T23:24:10.896Z] And the documentation. Ful
+[2025-09-13T23:24:14.553Z] Fully implemented, um, if you check the docs, uh, go to documentation here.
+[2025-09-13T23:24:27.045Z] And then it's under camera, photo capture, so it's definitely not as one for straight light. But for photo capture, I believe it's implemented. Um, photo size.
+[2025-09-13T23:24:34.950Z] Right there. I was thinking more, I don't know if I was misremembering, but like it was like in the app or was it probably not?
+[2025-09-13T23:24:41.668Z] Uh, no, I don't think we-- Oh, we do, so we do have like a setting for if you're taking pictures using the button there.
+[2025-09-13T23:24:42.353Z] Yeah, that's what we're doing.
+[2025-09-13T23:24:44.839Z] Um, so camera settings, right here.
+[2025-09-13T23:24:45.369Z] Oh, there it is.
+[2025-09-13T23:24:48.644Z] But that's, you can't access that from the SDK. That's like separate from the SDK.
+[2025-09-13T23:24:49.227Z] Oh, okay.
+[2025-09-13T23:24:52.962Z] So when you take a picture that way, it goes into your gallery here.
+[2025-09-13T23:24:54.772Z] Oh, okay.
+[2025-09-13T23:24:55.739Z] Which you synchronize.
+[2025-09-13T23:24:59.453Z] But if we want to do that same thing, but for our configuration? Here, then you would use th
+[2025-09-13T23:24:59.586Z] Here, then you would use this.
+[2025-09-13T23:25:01.353Z] Okay, and then it matches up one to one?
+[2025-09-13T23:25:04.245Z] Uh, I'm not 100% certain about that. I think so.
+[2025-09-13T23:25:05.135Z] I think so.
+[2025-09-13T23:25:06.344Z] Okay, okay.
+[2025-09-13T23:25:07.369Z] Yeah, it was close enough.
+[2025-09-13T23:25:08.661Z] Thank you, thank you, sir.
+[2025-09-13T23:25:09.050Z] No worries.
+[2025-09-13T23:25:17.045Z] I'm curious how we would translate this.
+[2025-09-13T23:25:17.786Z] Because you have like...
+[2025-09-13T23:25:18.875Z] Did you end up doing it or?
+[2025-09-13T23:25:19.551Z] Do you have like a--
+[2025-09-13T23:25:20.142Z] Uh, yeah.
+[2025-09-13T23:25:21.364Z] Can you push over?
+[2025-09-13T23:25:22.915Z] Like if you grab all of it?
+[2025-09-13T23:25:24.041Z] Yeah, all of it.
+[2025-09-13T23:25:27.119Z] And it shouldn't-- You might have to pull then push, but--
+[2025-09-13T23:25:28.249Z] Like that? That was a good slide.
+[2025-09-13T23:25:32.442Z] So maybe you could--
+[2025-09-13T23:25:36.642Z] But there shouldn't really be any conflicts at all because you just made a whole new folder and you just put it like alongside it.
+[2025-09-13T23:25:47.114Z] Um, so Nicholas, we were thinking of doing like an actual, like, sample things. So like, he would YAP about her SAT prep, and then you would pretend to be the student.
+[2025-09-13T23:25:56.777Z] Like, because she'll like-- So we have a sample, you know what I'm saying? And then we could like put that into our system and then I start coding the thing around it. And then we'll see if the output's good. You know what I'm saying, right? Ye
+[2025-09-13T23:26:01.357Z] ah, yeah, yeah. I mean, there's multiple ways. We could do it like that, or we could just a YouTube lecture too as well, right?
+[2025-09-13T23:26:05.829Z] Okay, it should be uploaded.
+[2025-09-13T23:26:07.502Z] Photos app.
+[2025-09-13T23:26:12.097Z] So do you want to test that now?
+[2025-09-13T23:26:14.019Z] Because transcription's working, right?
+[2025-09-13T23:26:15.344Z] Okay.
+[2025-09-13T23:26:16.774Z] Okay, nice.
+[2025-09-13T23:26:20.459Z] Thing is, you're going to have to push your code and I'm going to have to run it to test.
+[2025-09-13T23:26:22.924Z] Are we able to push that right now?
+[2025-09-13T23:26:23.647Z] You have to push what?
+[2025-09-13T23:26:28.831Z] Like, we can only really test the full end-to-end thing on my laptop, basically, is what I'm trying to say.
+[2025-09-13T23:26:29.373Z] Oh.
+[2025-09-13T23:26:31.541Z] All this stuff.
+[2025-09-13T23:26:32.084Z] The camera.
+[2025-09-13T23:26:33.890Z] For the transcript.
+[2025-09-13T23:26:39.825Z] Yeah, because mine was the only one that worked with both. U
+[2025-09-13T23:26:42.856Z] Uh, I mean, the GitHub repository, we need that for our--
+[2025-09-13T23:26:44.123Z] Alright, that's fine.
+[2025-09-13T23:26:47.037Z] So we could just, um, start it now?
+[2025-09-13T23:26:50.469Z] Like, like that slide show you had?
+[2025-09-13T23:26:52.521Z] We'll just walk right through it.
+[2025-09-13T23:26:53.847Z] Oh, well, I don't know.
+[2025-09-13T23:26:55.272Z] So you just-- Five thirty minut
+[2025-09-13T23:26:55.382Z] Five thirty minutes.
+[2025-09-13T23:26:57.247Z] So why don't we just watch like a YouTube video?
+[2025-09-13T23:26:59.170Z] How's everything looking?
+[2025-09-13T23:26:59.451Z] Pretty good.
+[2025-09-13T23:27:00.859Z] We can show the transcript.
+[2025-09-13T23:27:01.869Z] Okay, wait, let me--
+[2025-09-13T23:27:02.448Z] Yeah.
+[2025-09-13T23:27:05.419Z] Okay, wait, let's figure out the API.
+[2025-09-13T23:27:05.773Z] Yeah.
+[2025-09-13T23:27:06.656Z] Oh.
+[2025-09-13T23:27:07.940Z] Wait, is it--
+[2025-09-13T23:27:09.555Z] So where are you stuck at?
+[2025-09-13T23:27:11.156Z] Oh, okay, what it is on. Oh,
+[2025-09-13T23:27:11.654Z] Oh, okay.
+[2025-09-13T23:27:12.902Z] I've never--
+[2025-09-13T23:27:20.215Z] So it's like built in with the glasses, so we just have to, like, it was a method or function we called. Okay. And it like transcripts if you see like...
+[2025-09-13T23:27:21.288Z] Oh, amazing.
+[2025-09-13T23:27:21.600Z] Yeah.
+[2025-09-13T23:27:22.013Z] Okay.
+[2025-09-13T23:27:22.768Z] And then--
+[2025-09-13T23:27:23.439Z] Really great.
+[2025-09-13T23:27:38.393Z] So for now, um, it's just kind of with a timestamp and the message. Uh-huh. Is there any way you would kind of recommend we send it? Like, because or is that kind of good enough and we can just kind of tweak that?
+[2025-09-13T23:27:44.433Z] Yeah, no, that's really good enough. I mean, can you present it to an AI model already?
+[2025-09-13T23:27:45.260Z] Go ahead.
+[2025-09-13T23:27:48.736Z] Because we're talking about what you-- Okay, so no one's ever--
+[2025-09-13T23:27:50.792Z] That's amazing. That's really good.
+[2025-09-13T23:28:03.275Z] So pretty much what you need is you have the timestamps for the transcript, you have the timestamps for the images, and you can just put a timestamp into the image description. Sorry. How do you do it?
+[2025-09-13T23:28:15.772Z] And we were thinking, um, because with just like different, like, notes, I guess we're thinking if the timestamps are within five minutes, I mean, without like, we'll choose some like five, ten minutes. It would make a new note.
+[2025-09-13T23:28:24.940Z] So like, that'd be a good way to bucket it. So like, let's say it happens like, I don't know, six minutes, seven, eight, nine, those would all be together, but then like fifteen, it would be like a new note.
+[2025-09-13T23:28:25.848Z] Kind of.
+[2025-09-13T23:28:26.622Z] Okay.
+[2025-09-13T23:28:28.446Z] That makes sense. That makes sense.
+[2025-09-13T23:28:38.603Z] So pretty much what you want to do is bucket both the like put the transcription in get all the images in five minutes? Ye
+[2025-09-13T23:28:43.274Z] ah, or within like, like it can keep going longer and longer and longer, but the five minutes break is kind of the--
+[2025-09-13T23:28:44.171Z] I don't think I'm supposed to.
+[2025-09-13T23:28:48.024Z] Like a new note, basically. That's what we're-- I feel like that would kind of work.
+[2025-09-13T23:28:49.480Z] Yeah, it does. That makes sense.
+[2025-09-13T23:28:50.594Z] Okay.
+[2025-09-13T23:28:52.871Z] Okay, okay, looking great.
+[2025-09-13T23:28:57.660Z] So pretty much you have, you have it's integrated there.
+[2025-09-13T23:28:59.188Z] So subscribed.
+[2025-09-13T23:29:02.446Z] Yeah, I was going to tweak some stuff with the camera because--
+[2025-09-13T23:29:03.388Z] It's because it's like-- I
+[2025-09-13T23:29:15.680Z] was talking to them and they said there's-- we can play around with the different camera and then like, the size and the resolution, so hopefully it'll be clearer and bigger so it's easier to then, uh, send to the model.
+[2025-09-13T23:29:16.365Z] Yes, yes, yes.
+[2025-09-13T23:29:17.408Z] I think it's going pretty well.
+[2025-09-13T23:29:18.732Z] We got plenty of time too.
+[2025-09-13T23:29:20.776Z] Looks amazing. Yes, yes, that's true.
+[2025-09-13T23:29:24.702Z] Yeah,
+[2025-09-13T23:29:32.092Z] The API key. So, uh, we, we are created a JavaScript file and we want to start trying to--
+[2025-09-13T23:29:33.949Z] Can you run it after the API?
+[2025-09-13T23:29:35.692Z] Like the pod API.
+[2025-09-13T23:29:36.353Z] Oh, okay.
+[2025-09-13T23:29:41.541Z] So here are all the images and then here's our JavaScript file and we're just not really sure where to send it.
+[2025-09-13T23:29:41.984Z] Okay.
+[2025-09-13T23:29:49.273Z] Also, it's not letting me push it on my change because it's an API key and it knows it's an API key.
+[2025-09-13T23:29:49.579Z] Oh!
+[2025-09-13T23:29:51.044Z] Wait, did you put in the .env?
+[2025-09-13T23:29:51.674Z] Huh?
+[2025-09-13T23:29:52.865Z] Is it in a .env?
+[2025-09-13T23:29:54.057Z] Env?
+[2025-09-13T23:29:54.765Z] Env.
+[2025-09-13T23:29:55.348Z] Env?
+[2025-09-13T23:29:56.497Z] Yeah, you have to-- O
+[2025-09-13T23:30:07.808Z] Oh, yeah. And basically like, it's the file that's hidden so when it pushes our code to the open, like, yeah, and it all has to-- we all have to have the same--
+[2025-09-13T23:30:09.250Z] I think I made it in mine.
+[2025-09-13T23:30:13.270Z] It basically just hides that specific code from being pushed to our public repository.
+[2025-09-13T23:30:14.141Z] Oh, okay, okay, okay.
+[2025-09-13T23:30:15.255Z] I've got one right there.
+[2025-09-13T23:30:22.937Z] Because imagine, well, people do that, they have like their bots that scrape and then they just use your API key.
+[2025-09-13T23:30:25.275Z] So-- I
+[2025-09-13T23:30:28.357Z] I mean, well, these aren't our-- we didn't spend money on credits, so it's not that bad, but--
+[2025-09-13T23:30:29.954Z] I better update that.
+[2025-09-13T23:30:31.414Z] That's true.
+[2025-09-13T23:30:37.937Z] Yeah, let's get this API key.
+[2025-09-13T23:30:54.667Z] But you should probably just-- I just sent in the Discord. If you do let-- if you create a new file called .env and just copy and paste it on in, it should be decent.
+[2025-09-13T23:30:56.137Z] That's .env? Just
+[2025-09-13T23:30:56.558Z] Just .env.
+[2025-09-13T23:30:58.791Z] Start making plugins for it, yeah.
+[2025-09-13T23:31:01.607Z] Do you want to start making plugins for--
+[2025-09-13T23:31:03.303Z] So we can call this?
+[2025-09-13T23:31:04.848Z] Wait, it's been transcribing the whole time.
