@@ -224,35 +224,20 @@ app.post('/transcription', (req, res) => {
             fs.mkdirSync(transcriptionsDir, { recursive: true });
         }
         
-        // Create filename with timestamp
+        // Create daily log file entry
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
-        const filename = `transcription-${dateStr}-${timeStr}-${userId}.txt`;
-        const filepath = path.join(transcriptionsDir, filename);
-        
-        // Prepare transcription entry
-        const transcriptionEntry = {
-            timestamp: timestamp || now.toISOString(),
-            userId: userId,
-            type: type || 'teacher_notes',
-            text: text
-        };
+        const dailyLogFile = path.join(transcriptionsDir, `${dateStr}-${userId}.log`);
+        const logEntry = `[${timestamp || now.toISOString()}] ${text}\n`;
         
         // Append to daily log file
-        const dailyLogFile = path.join(transcriptionsDir, `${dateStr}-${userId}.log`);
-        const logEntry = `[${transcriptionEntry.timestamp}] ${transcriptionEntry.text}\n`;
         fs.appendFileSync(dailyLogFile, logEntry);
         
-        // Also save as individual JSON file
-        fs.writeFileSync(filepath, JSON.stringify(transcriptionEntry, null, 2));
-        
-        console.log(`✅ Transcription saved: "${text.substring(0, 50)}..." to ${filename}`);
+        console.log(`✅ Transcription saved: "${text.substring(0, 50)}..." to daily log`);
         
         res.json({
             success: true,
-            message: 'Transcription saved successfully',
-            filename: filename,
+            message: 'Transcription saved to daily log',
             dailyLog: `${dateStr}-${userId}.log`
         });
         
@@ -266,7 +251,7 @@ app.post('/transcription', (req, res) => {
     }
 });
 
-// Get transcriptions for a user
+// Get transcriptions for a user (from .log files)
 app.get('/transcriptions/:userId?', (req, res) => {
     try {
         const userId = req.params.userId;
@@ -277,19 +262,20 @@ app.get('/transcriptions/:userId?', (req, res) => {
         }
         
         const files = fs.readdirSync(transcriptionsDir);
-        let transcriptionFiles = files.filter(file => file.endsWith('.txt'));
+        let logFiles = files.filter(file => file.endsWith('.log'));
         
         // Filter by userId if provided
         if (userId) {
-            transcriptionFiles = transcriptionFiles.filter(file => file.includes(userId));
+            logFiles = logFiles.filter(file => file.includes(userId));
         }
         
-        const transcriptions = transcriptionFiles.map(file => {
+        const transcriptions = logFiles.map(file => {
             const filepath = path.join(transcriptionsDir, file);
-            const content = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+            const content = fs.readFileSync(filepath, 'utf8');
             return {
                 filename: file,
-                ...content
+                content: content,
+                lines: content.split('\n').filter(line => line.trim())
             };
         });
         
