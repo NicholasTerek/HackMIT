@@ -12,8 +12,10 @@
   "description": "Example app for taking photos with MentraOS",
   "dependencies": {
     "@mentra/sdk": "latest",
+    "axios": "^1.6.0",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
+    "form-data": "^4.0.0",
     "ws": "^8.18.1"
   },
   "devDependencies": {

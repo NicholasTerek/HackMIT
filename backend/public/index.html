@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .upload-btn:hover {
+            background: #0056b3;
+        }
+        .preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 10px auto;
+            display: block;
+            border-radius: 5px;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .photo-item {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .photo-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Photo Upload Testing</h1>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+            <div class="container" style="margin: 0;">
+                <h2>🔗 API Upload Test</h2>
+                <div class="upload-area" id="uploadArea">
+                    <p>📁 Drag and drop your photo here or click to select</p>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        Choose Photo (API)
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+
+                <div id="preview"></div>
+                <div id="message"></div>
+
+                <button class="upload-btn" id="uploadBtn" style="display: none;">
+                    Upload via API
+                </button>
+            </div>
+
+            <div class="container" style="margin: 0;">
+                <h2>💾 Direct Save Test</h2>
+                <div class="upload-area" id="directUploadArea">
+                    <p>📁 Drag and drop your photo here or click to select</p>
+                    <button class="upload-btn" onclick="document.getElementById('directFileInput').click()">
+                        Choose Photo (Direct)
+                    </button>
+                    <input type="file" id="directFileInput" accept="image/*">
+                </div>
+
+                <div id="directPreview"></div>
+                <div id="directMessage"></div>
+
+                <button class="upload-btn" id="directUploadBtn" style="display: none;">
+                    Save Directly
+                </button>
+            </div>
+        </div>
+
+        <h2>📷 Uploaded Photos</h2>
+        <div id="photosGrid" class="photos-grid"></div>
+
+        <h2>🥽 Glass Photos</h2>
+        <div id="glassPhotosGrid" class="photos-grid"></div>
+    </div>
+
+    <script>
+        // API Upload elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const message = document.getElementById('message');
+        const uploadBtn = document.getElementById('uploadBtn');
+        
+        // Direct Save elements
+        const directUploadArea = document.getElementById('directUploadArea');
+        const directFileInput = document.getElementById('directFileInput');
+        const directPreview = document.getElementById('directPreview');
+        const directMessage = document.getElementById('directMessage');
+        const directUploadBtn = document.getElementById('directUploadBtn');
+        
+        // Photo grids
+        const photosGrid = document.getElementById('photosGrid');
+        const glassPhotosGrid = document.getElementById('glassPhotosGrid');
+        
+        let selectedFile = null;
+        let directSelectedFile = null;
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // API Upload - File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // Direct Save - File input change
+        directFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleDirectFileSelect(e.target.files[0]);
+            }
+        });
+
+        // Handle API upload file selection
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                showMessage('Please select an image file.', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.innerHTML = `<img src="${e.target.result}" class="preview" alt="Preview">`;
+                uploadBtn.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Handle direct save file selection
+        function handleDirectFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                showDirectMessage('Please select an image file.', 'error');
+                return;
+            }
+
+            directSelectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                directPreview.innerHTML = `<img src="${e.target.result}" class="preview" alt="Preview">`;
+                directUploadBtn.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Upload photo
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('photo', selectedFile);
+
+            try {
+                uploadBtn.textContent = 'Uploading...';
+                uploadBtn.disabled = true;
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`✅ ${result.message}`, 'success');
+                    resetForm();
+                    loadPhotos(); // Refresh the photos grid
+                } else {
+                    showMessage(`❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Upload failed: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.textContent = 'Upload Photo';
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // Direct Save upload
+        directUploadBtn.addEventListener('click', async () => {
+            if (!directSelectedFile) return;
+
+            try {
+                directUploadBtn.textContent = 'Saving...';
+                directUploadBtn.disabled = true;
+
+                // Simulate direct save (in real app, this would save to file system)
+                const formData = new FormData();
+                formData.append('photo', directSelectedFile);
+                formData.append('method', 'direct');
+
+                const response = await fetch('/upload-direct', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showDirectMessage(`✅ ${result.message}`, 'success');
+                    resetDirectForm();
+                    loadPhotos();
+                } else {
+                    showDirectMessage(`❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showDirectMessage(`❌ Direct save failed: ${error.message}`, 'error');
+            } finally {
+                directUploadBtn.textContent = 'Save Directly';
+                directUploadBtn.disabled = false;
+            }
+        });
+
+        // Show message functions
+        function showMessage(text, type) {
+            message.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => {
+                message.innerHTML = '';
+            }, 5000);
+        }
+
+        function showDirectMessage(text, type) {
+            directMessage.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => {
+                directMessage.innerHTML = '';
+            }, 5000);
+        }
+
+        // Reset form functions
+        function resetForm() {
+            selectedFile = null;
+            fileInput.value = '';
+            preview.innerHTML = '';
+            uploadBtn.style.display = 'none';
+        }
+
+        function resetDirectForm() {
+            directSelectedFile = null;
+            directFileInput.value = '';
+            directPreview.innerHTML = '';
+            directUploadBtn.style.display = 'none';
+        }
+
+        // Load and display uploaded photos
+        async function loadPhotos() {
+            try {
+                const response = await fetch('/photos');
+                const result = await response.json();
+
+                if (result.success) {
+                    photosGrid.innerHTML = '';
+                    result.photos.forEach(photo => {
+                        const photoItem = document.createElement('div');
+                        photoItem.className = 'photo-item';
+                        photoItem.innerHTML = `
+                            <img src="${photo.path}" alt="${photo.filename}">
+                            <p>${photo.filename}</p>
+                            <small>${new Date(photo.uploadTime).toLocaleString()}</small>
+                        `;
+                        photosGrid.appendChild(photoItem);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load photos:', error);
+            }
+        }
+
+        // Load and display Glass photos
+        async function loadGlassPhotos() {
+            try {
+                const response = await fetch('/glass-photos');
+                const result = await response.json();
+
+                if (result.success) {
+                    glassPhotosGrid.innerHTML = '';
+                    if (result.photos.length === 0) {
+                        glassPhotosGrid.innerHTML = '<p>No Glass photos yet. Take a photo with your glasses!</p>';
+                    } else {
+                        result.photos.forEach(photo => {
+                            const photoItem = document.createElement('div');
+                            photoItem.className = 'photo-item';
+                            photoItem.innerHTML = `
+                                <img src="${photo.path}" alt="${photo.filename}">
+                                <p>${photo.filename}</p>
+                                <small>${new Date(photo.uploadTime).toLocaleString()}</small>
+                                <small>${(photo.size / 1024).toFixed(1)} KB</small>
+                            `;
+                            glassPhotosGrid.appendChild(photoItem);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load Glass photos:', error);
+                glassPhotosGrid.innerHTML = '<p>Error loading Glass photos</p>';
+            }
+        }
+
+        // Load photos on page load
+        loadPhotos();
+        loadGlassPhotos();
+        
+        // Refresh Glass photos every 5 seconds
+        setInterval(loadGlassPhotos, 5000);
+    </script>
+</body>
+</html>

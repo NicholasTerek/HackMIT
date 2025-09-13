@@ -2,6 +2,7 @@ import { AppServer, AppSession, ViewType, AuthenticatedRequest, PhotoData } from
 import { Request, Response } from 'express';
 import * as ejs from 'ejs';
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * Interface representing a stored photo with metadata
@@ -105,9 +106,11 @@ class ExampleMentraOSApp extends AppServer {
   }
 
   /**
-   * Cache a photo for display
+   * Cache a photo for display and send to backend server
    */
   private async cachePhoto(photo: PhotoData, userId: string) {
+    this.logger.info(`Starting cachePhoto for user ${userId}, photo size: ${photo.size} bytes, mimeType: ${photo.mimeType}`);
+    
     // create a new stored photo object which includes the photo data and the user id
     const cachedPhoto: StoredPhoto = {
       requestId: photo.requestId,
@@ -119,14 +122,131 @@ class ExampleMentraOSApp extends AppServer {
       size: photo.size
     };
 
-    // this example app simply stores the photo in memory for display in the webview, but you could also send the photo to an AI api,
-    // or store it in a database or cloud storage, send it to roboflow, or do other processing here
+    // Save photo locally first as backup
+    await this.savePhotoLocally(cachedPhoto);
+
+    // Send photo via API upload
+    await this.sendPhotoToBackend(cachedPhoto);
 
     // cache the photo for display
     this.photos.set(userId, cachedPhoto);
     // update the latest photo timestamp
     this.latestPhotoTimestamp.set(userId, cachedPhoto.timestamp.getTime());
     this.logger.info(`Photo cached for user ${userId}, timestamp: ${cachedPhoto.timestamp}`);
+  }
+
+  /**
+   * Save photo locally in Glass folder
+   */
+  private async savePhotoLocally(photo: StoredPhoto): Promise<void> {
+    try {
+      this.logger.info(`Attempting to save photo locally: ${photo.filename}`);
+      
+      // Create photos directory if it doesn't exist
+      const photosDir = path.join(process.cwd(), 'photos');
+      if (!fs.existsSync(photosDir)) {
+        fs.mkdirSync(photosDir, { recursive: true });
+        this.logger.info(`Created photos directory: ${photosDir}`);
+      }
+
+      // Generate unique filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const extension = path.extname(photo.filename) || '.jpg';
+      const localFilename = `photo-${timestamp}-${photo.userId}${extension}`;
+      const localPath = path.join(photosDir, localFilename);
+
+      // Write the buffer to file
+      fs.writeFileSync(localPath, photo.buffer);
+      
+      this.logger.info(`Photo saved locally: ${localPath} (${photo.buffer.length} bytes)`);
+    } catch (error) {
+      this.logger.error(`Error saving photo locally: ${error}`);
+    }
+  }
+
+  /**
+   * Save photo directly to backend uploads folder (file system approach)
+   */
+  private async savePhotoToBackendFolder(photo: StoredPhoto): Promise<void> {
+    try {
+      this.logger.info(`Attempting to save photo directly to backend uploads folder`);
+      
+      // Path to backend uploads folder
+      const backendUploadsDir = path.join(process.cwd(), '../backend/uploads');
+      
+      // Create backend uploads directory if it doesn't exist
+      if (!fs.existsSync(backendUploadsDir)) {
+        fs.mkdirSync(backendUploadsDir, { recursive: true });
+        this.logger.info(`Created backend uploads directory: ${backendUploadsDir}`);
+      }
+
+      // Generate unique filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const extension = path.extname(photo.filename) || '.jpg';
+      const backendFilename = `glass-photo-${timestamp}-${photo.userId}${extension}`;
+      const backendPath = path.join(backendUploadsDir, backendFilename);
+
+      // Write the buffer to backend uploads folder
+      fs.writeFileSync(backendPath, photo.buffer);
+      
+      this.logger.info(`✅ Photo saved directly to backend: ${backendPath} (${photo.buffer.length} bytes)`);
+    } catch (error) {
+      this.logger.error(`❌ Error saving photo to backend folder: ${error}`);
+    }
+  }
+
+  /**
+   * Send photo to backend server (HTTP approach - using axios for better FormData support)
+   */
+  private async sendPhotoToBackend(photo: StoredPhoto): Promise<void> {
+    this.logger.info(`Starting sendPhotoToBackend for photo: ${photo.filename}, size: ${photo.buffer.length} bytes`);
+    
+    try {
+      const axios = require('axios');
+      const FormData = require('form-data');
+      
+      this.logger.info(`Creating FormData with axios approach...`);
+      const formData = new FormData();
+      
+      // Create a readable stream from buffer for form-data
+      const { Readable } = require('stream');
+      const bufferStream = new Readable({
+        read() {}
+      });
+      bufferStream.push(photo.buffer);
+      bufferStream.push(null);
+      
+      formData.append('photo', bufferStream, {
+        filename: photo.filename,
+        contentType: photo.mimeType,
+        knownLength: photo.buffer.length
+      });
+
+      this.logger.info(`Sending POST request with axios to http://localhost:3001/upload`);
+      
+      const response = await axios.post('http://localhost:3001/upload', formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Content-Length': formData.getLengthSync()
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
+
+      this.logger.info(`Received response with status: ${response.status}`);
+      
+      if (response.data.success) {
+        this.logger.info(`✅ Photo successfully sent to backend: ${response.data.filename}`);
+      } else {
+        this.logger.error(`❌ Backend rejected photo: ${response.data.message}`);
+      }
+    } catch (error) {
+      this.logger.error(`💥 Error sending photo to backend: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Response status: ${error.response.status}`);
+        this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+    }
   }
 
 
