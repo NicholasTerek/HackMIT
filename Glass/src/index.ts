@@ -52,6 +52,16 @@ class ExampleMentraOSApp extends AppServer {
     this.isStreamingPhotos.set(userId, false);
     this.nextPhotoTime.set(userId, Date.now());
 
+    // Set up transcription for teacher notes
+    session.events.onTranscription(async (data) => {
+      this.logger.info(`Transcription received: "${data.text}", Final: ${data.isFinal}`);
+      
+      if (data.isFinal) {
+        // Send final transcription to backend
+        await this.sendTranscriptionToBackend(data.text, userId);
+      }
+    });
+
     // this gets called whenever a user presses a button
     session.events.onButtonPress(async (button) => {
       this.logger.info(`Button pressed: ${button.buttonId}, type: ${button.pressType}`);
@@ -192,6 +202,39 @@ class ExampleMentraOSApp extends AppServer {
       this.logger.info(`✅ Photo saved directly to backend: ${backendPath} (${photo.buffer.length} bytes)`);
     } catch (error) {
       this.logger.error(`❌ Error saving photo to backend folder: ${error}`);
+    }
+  }
+
+  /**
+   * Send transcription to backend server
+   */
+  private async sendTranscriptionToBackend(text: string, userId: string): Promise<void> {
+    try {
+      const axios = require('axios');
+      
+      const transcriptionData = {
+        text: text,
+        userId: userId,
+        timestamp: new Date().toISOString(),
+        type: 'teacher_notes'
+      };
+      
+      this.logger.info(`Sending transcription to backend: "${text.substring(0, 50)}..."`);
+      
+      const response = await axios.post('http://localhost:3001/transcription', transcriptionData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000
+      });
+      
+      if (response.status === 200) {
+        this.logger.info(`✅ Transcription sent successfully to backend`);
+      } else {
+        this.logger.error(`❌ Backend returned status: ${response.status}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error sending transcription to backend: ${error}`);
     }
   }
 

@@ -204,6 +204,105 @@ app.post('/upload-direct', upload.single('photo'), (req, res) => {
     }
 });
 
+// Transcription endpoint for teacher notes
+app.post('/transcription', (req, res) => {
+    console.log('🎤 Transcription received');
+    
+    try {
+        const { text, userId, timestamp, type } = req.body;
+        
+        if (!text || !userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: text and userId'
+            });
+        }
+        
+        // Create transcriptions directory if it doesn't exist
+        const transcriptionsDir = path.join(__dirname, 'transcriptions');
+        if (!fs.existsSync(transcriptionsDir)) {
+            fs.mkdirSync(transcriptionsDir, { recursive: true });
+        }
+        
+        // Create filename with timestamp
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+        const filename = `transcription-${dateStr}-${timeStr}-${userId}.txt`;
+        const filepath = path.join(transcriptionsDir, filename);
+        
+        // Prepare transcription entry
+        const transcriptionEntry = {
+            timestamp: timestamp || now.toISOString(),
+            userId: userId,
+            type: type || 'teacher_notes',
+            text: text
+        };
+        
+        // Append to daily log file
+        const dailyLogFile = path.join(transcriptionsDir, `${dateStr}-${userId}.log`);
+        const logEntry = `[${transcriptionEntry.timestamp}] ${transcriptionEntry.text}\n`;
+        fs.appendFileSync(dailyLogFile, logEntry);
+        
+        // Also save as individual JSON file
+        fs.writeFileSync(filepath, JSON.stringify(transcriptionEntry, null, 2));
+        
+        console.log(`✅ Transcription saved: "${text.substring(0, 50)}..." to ${filename}`);
+        
+        res.json({
+            success: true,
+            message: 'Transcription saved successfully',
+            filename: filename,
+            dailyLog: `${dateStr}-${userId}.log`
+        });
+        
+    } catch (error) {
+        console.error('💥 Transcription save error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save transcription',
+            error: error.message
+        });
+    }
+});
+
+// Get transcriptions for a user
+app.get('/transcriptions/:userId?', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const transcriptionsDir = path.join(__dirname, 'transcriptions');
+        
+        if (!fs.existsSync(transcriptionsDir)) {
+            return res.json({ success: true, transcriptions: [] });
+        }
+        
+        const files = fs.readdirSync(transcriptionsDir);
+        let transcriptionFiles = files.filter(file => file.endsWith('.txt'));
+        
+        // Filter by userId if provided
+        if (userId) {
+            transcriptionFiles = transcriptionFiles.filter(file => file.includes(userId));
+        }
+        
+        const transcriptions = transcriptionFiles.map(file => {
+            const filepath = path.join(transcriptionsDir, file);
+            const content = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+            return {
+                filename: file,
+                ...content
+            };
+        });
+        
+        res.json({ success: true, transcriptions });
+    } catch (error) {
+        console.error('Error reading transcriptions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to read transcriptions'
+        });
+    }
+});
+
 // Basic route
 app.get('/', (req, res) => {
     res.json({ 
@@ -212,7 +311,9 @@ app.get('/', (req, res) => {
             upload: 'POST /upload (API method)',
             'upload-direct': 'POST /upload-direct (Direct save method)',
             photos: 'GET /photos',
-            'glass-photos': 'GET /glass-photos'
+            'glass-photos': 'GET /glass-photos',
+            transcription: 'POST /transcription (Teacher notes)',
+            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)'
         }
     });
 });

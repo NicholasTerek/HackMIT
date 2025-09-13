@@ -12,9 +12,13 @@ yarn-error.log*
 .env.production.local
 
 
-# Logs
+# Logs (but keep transcription .log files)
 logs
 *.log
+!transcriptions/*.log
+
+# Transcription individual files (keep daily .log files)
+transcriptions/*.txt
 
 # Runtime data
 pids
