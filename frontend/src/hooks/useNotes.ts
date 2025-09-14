@@ -6,6 +6,7 @@ import type { Photo } from "./usePhotos";
 import type { Transcription } from "./useTranscriptions";
 
 const STORAGE_KEY = "notes-app-data";
+const OVERRIDES_KEY = "notes-app-generated-overrides";
 const SEVEN_MINUTES_MS = 7 * 60 * 1000; // 7 minutes in milliseconds
 
 export interface TranscriptionEntry {
@@ -26,10 +27,11 @@ export interface EnhancedNote extends Note {
 
 export const useNotes = () => {
   const [manualNotes, setManualNotes] = useState<Note[]>([]);
+  const [generatedNoteOverrides, setGeneratedNoteOverrides] = useState<Record<string, Partial<Note>>>({});
   const { photos, isLoading: photosLoading, error: photosError } = usePhotos();
   const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
 
-  // Load manual notes from localStorage on mount
+  // Load manual notes and overrides from localStorage on mount
   useEffect(() => {
     const storedNotes = localStorage.getItem(STORAGE_KEY);
     if (storedNotes) {
@@ -66,12 +68,27 @@ export const useNotes = () => {
       ];
       setManualNotes(sampleNotes);
     }
+
+    // Load overrides for generated notes (e.g., edited titles)
+    const storedOverrides = localStorage.getItem(OVERRIDES_KEY);
+    if (storedOverrides) {
+      try {
+        setGeneratedNoteOverrides(JSON.parse(storedOverrides));
+      } catch (error) {
+        console.error("Error loading overrides from localStorage:", error);
+      }
+    }
   }, []);
 
   // Save manual notes to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(manualNotes));
   }, [manualNotes]);
+
+  // Persist overrides as they change
+  useEffect(() => {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(generatedNoteOverrides));
+  }, [generatedNoteOverrides]);
 
   // Parse transcription lines to extract timestamp and text
   const parseTranscriptionEntry = (line: string): TranscriptionEntry | null => {
@@ -257,10 +274,22 @@ export const useNotes = () => {
 
   // Combine manual and generated notes
   const allNotes = useMemo(() => {
-    return [...generatedNotes, ...manualNotes].sort((a, b) => 
+    // Apply overrides to generated notes if present
+    const generatedWithOverrides: EnhancedNote[] = generatedNotes.map((note) => {
+      const override = generatedNoteOverrides[note.id];
+      if (!override) return note;
+      return {
+        ...note,
+        title: override.title ?? note.title,
+        content: override.content ?? note.content,
+        updatedAt: override.updatedAt ?? note.updatedAt,
+      } as EnhancedNote;
+    });
+
+    return [...generatedWithOverrides, ...manualNotes].sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
-  }, [generatedNotes, manualNotes]);
+  }, [generatedNotes, manualNotes, generatedNoteOverrides]);
 
   const addNote = (noteData: Omit<Note, "id" | "createdAt" | "updatedAt">) => {
     const newNote: Note = {
@@ -273,9 +302,19 @@ export const useNotes = () => {
   };
 
   const updateNote = (updatedNote: Note) => {
-    // Only allow updating manual notes, not generated ones
-    if (updatedNote.id.startsWith('generated-')) return;
-    
+    if (updatedNote.id.startsWith('generated-')) {
+      // Store an override for generated note edits (e.g., title/content changes)
+      setGeneratedNoteOverrides((prev) => ({
+        ...prev,
+        [updatedNote.id]: {
+          title: updatedNote.title,
+          content: updatedNote.content,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+      return;
+    }
+
     setManualNotes((prev) =>
       prev.map((note) => (note.id === updatedNote.id ? updatedNote : note))
     );

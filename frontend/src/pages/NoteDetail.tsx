@@ -179,6 +179,7 @@ const NoteDetail = () => {
 
   const handleSave = () => {
     updateNote({ ...note, title, content, updatedAt: new Date().toISOString() });
+    navigate("/");
   };
 
   const handleDelete = () => {
@@ -247,7 +248,12 @@ const NoteDetail = () => {
           <div className="hidden lg:block" />
           <div className="lg:col-span-1 flex justify-end gap-2 lg:pr-4">
             <Button variant="outline" className="rounded-full px-5" onClick={handleDelete}>Delete</Button>
-            <Button className="bg-gradient-primary rounded-full px-6" onClick={handleSave}>Save</Button>
+            <Button
+              className="rounded-full px-6 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors active:scale-[0.98] transition-transform"
+              onClick={handleSave}
+            >
+              Save
+            </Button>
           </div>
         </div>
       </header>
@@ -269,87 +275,77 @@ const NoteDetail = () => {
             </audio>
           </div>
 
-          {/* Transcript controls */}
-          {hasTranscriptions && (
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                <span>{enhancedNote.transcriptionEntries?.length} transcript entries</span>
-                {enhancedNote.duration && (
-                  <>
-                    <span>•</span>
-                    <Clock className="h-4 w-4" />
-                    <span>{formatTranscriptDuration(enhancedNote.duration)}</span>
-                  </>
-                )}
+          {/* Transcript header and content combined */}
+          {hasTranscriptions ? (
+            <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span>{enhancedNote.transcriptionEntries?.length} transcript entries</span>
+                  {enhancedNote.duration && (
+                    <>
+                      <span>•</span>
+                      <Clock className="h-4 w-4" />
+                      <span>{formatTranscriptDuration(enhancedNote.duration)}</span>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSummary(!showSummary)}
+                  className="px-0 h-auto bg-transparent hover:bg-transparent border-0 rounded-none shadow-none text-foreground hover:text-muted-foreground transition-colors"
+                  disabled={summaryLoading}
+                >
+                  {summaryLoading
+                    ? 'Loading...'
+                    : showSummary
+                      ? 'Show Full Transcript'
+                      : 'Show Summary'}
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSummary(!showSummary)}
-                className="flex items-center gap-2"
-                disabled={summaryLoading}
-              >
-                {summaryLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading AI Summary...
-                  </>
-                ) : showSummary ? (
-                  <>
-                    <ToggleRight className="h-4 w-4" />
-                    Show Summary
-                  </>
-                ) : (
-                  <>
-                    <ToggleLeft className="h-4 w-4" />
-                    Show Full Transcript
-                  </>
-                )}
-              </Button>
+
+              {showSummary ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-medium text-foreground">Summary</h3>
+                    {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  </div>
+                  <p className="text-muted-foreground leading-6">{transcriptSummary}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-foreground mb-3">Full Transcript</h3>
+                  {enhancedNote.transcriptionEntries?.map((entry: any, index: number) => (
+                    <div key={index} className="py-2">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {entry.timestamp.toLocaleString()}
+                      </div>
+                      <div className="text-sm">
+                        {entry.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-0 leading-7">
+              {content && content.trim().length > 0 && !isLegacyPlaceholder ? (
+                <p className="whitespace-pre-wrap">{content}</p>
+              ) : (
+                <PlaceholderDoc />
+              )}
             </div>
           )}
 
-          {/* Content display */}
-          <div className="p-0 leading-7">
-            {hasTranscriptions ? (
-              <div className="space-y-4">
-                {showSummary ? (
-                  <div className="bg-muted/30 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-foreground">Summary</h3>
-                      {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-foreground" />}
-                    </div>
-                    <p className="text-foreground">{transcriptSummary}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-foreground mb-3">Full Transcript</h3>
-                    {enhancedNote.transcriptionEntries?.map((entry: any, index: number) => (
-                      <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
-                        <div className="text-xs text-muted-foreground mb-1">
-                          {entry.timestamp.toLocaleString()}
-                        </div>
-                        <div className="text-sm">{entry.text}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Photo Context Display */}
-                {photoContextPairs.length > 0 && (
-                  <PhotoContextDisplay 
-                    photoContextPairs={photoContextPairs}
-                    className="mt-6"
-                  />
-                )}
-              </div>
-            ) : content && content.trim().length > 0 && !isLegacyPlaceholder ? (
-              <p className="whitespace-pre-wrap">{content}</p>
-            ) : (
-              <PlaceholderDoc />
-            )}
-          </div>
+          {/* Photo Context Display (below transcript/summary) */}
+          {photoContextPairs.length > 0 && (
+            <PhotoContextDisplay 
+              photoContextPairs={photoContextPairs}
+              className="mt-6"
+            />
+          )}
         </div>
 
         {/* Sidebar with actual photos */}
