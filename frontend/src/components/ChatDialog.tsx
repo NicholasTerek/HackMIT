@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Play, Pause, Square } from "lucide-react";
 
 interface ChatMessage {
   id: string;
@@ -18,6 +18,8 @@ interface ChatDialogProps {
 export const ChatDialog = ({ isOpen, onClose, initialQuestion, noteContext }: ChatDialogProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentUtterance, setCurrentUtterance] = useState<SpeechSynthesisUtterance | null>(null);
 
   // Reset messages and call API when dialog opens with new question
   useEffect(() => {
@@ -84,11 +86,53 @@ export const ChatDialog = ({ isOpen, onClose, initialQuestion, noteContext }: Ch
     }
   }, [isOpen, initialQuestion, noteContext]);
 
+  // Text-to-speech functions
+  const speakText = (text: string) => {
+    if (!window.speechSynthesis) {
+      alert('Text-to-speech is not supported in your browser.');
+      return;
+    }
+
+    // Stop any current speech
+    stopSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 0.8;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+    };
+
+    setCurrentUtterance(utterance);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeech = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+    }
+  };
+
   // Reset state when dialog closes
   useEffect(() => {
     if (!isOpen) {
       setMessages([]);
       setIsLoading(false);
+      stopSpeech(); // Stop any ongoing speech when dialog closes
     }
   }, [isOpen]);
 
@@ -133,7 +177,23 @@ export const ChatDialog = ({ isOpen, onClose, initialQuestion, noteContext }: Ch
                       : 'bg-neutral-100 text-neutral-900'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <div className="flex items-start gap-2">
+                    <p className="whitespace-pre-wrap text-sm flex-1">{message.content}</p>
+                    {message.type === 'answer' && (
+                      <button
+                        onClick={() => isSpeaking ? stopSpeech() : speakText(message.content)}
+                        className="flex-shrink-0 p-1 hover:bg-neutral-200 rounded-full transition-colors"
+                        aria-label={isSpeaking ? "Stop reading" : "Read aloud"}
+                        title={isSpeaking ? "Stop reading" : "Read aloud"}
+                      >
+                        {isSpeaking ? (
+                          <Square className="h-3 w-3 text-neutral-600" />
+                        ) : (
+                          <Play className="h-3 w-3 text-neutral-600" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNotes } from "@/hooks/useNotes";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic, MicOff, Square } from "lucide-react";
+import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic, MicOff, Square, Play, Pause } from "lucide-react";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
@@ -88,6 +88,9 @@ const NoteDetail = () => {
   const [transcript, setTranscript] = useState("");
   const [finalTranscript, setFinalTranscript] = useState("");
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentUtterance, setCurrentUtterance] = useState<SpeechSynthesisUtterance | null>(null);
+  const [speakingType, setSpeakingType] = useState<'summary' | 'transcript' | null>(null);
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -191,6 +194,61 @@ const NoteDetail = () => {
     setIsChatOpen(false);
   };
 
+  // Text-to-speech functions
+  const speakText = (text: string, type: 'summary' | 'transcript') => {
+    if (!window.speechSynthesis) {
+      alert('Text-to-speech is not supported in your browser.');
+      return;
+    }
+
+    // Stop any current speech
+    stopSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 0.8;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setSpeakingType(type);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingType(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingType(null);
+    };
+
+    setCurrentUtterance(utterance);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeech = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingType(null);
+    }
+  };
+
+  const speakFullTranscript = () => {
+    if (!enhancedNote?.transcriptionEntries) return;
+    
+    const fullText = enhancedNote.transcriptionEntries
+      .map((entry: any) => entry.text)
+      .join(' ');
+    
+    speakText(fullText, 'transcript');
+  };
+
   const handleVoiceInput = () => {
     if (!recognition) {
       alert('Speech recognition is not supported in your browser.');
@@ -268,12 +326,36 @@ const NoteDetail = () => {
             className="w-full bg-transparent border-0 shadow-none outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-0 p-0 text-3xl md:text-4xl font-semibold"
           />
 
-          {/* Audio player placeholder */}
-          <div className="p-0">
-            <audio className="w-[calc(100%+22px)] -ml-[22px]" controls src="">
-              Your browser does not support the audio element.
-            </audio>
-          </div>
+          {/* Audio player for transcription */}
+          {hasTranscriptions && (
+            <div className="p-0">
+              <audio 
+                className="w-[calc(100%+22px)] -ml-[22px]" 
+                controls 
+                style={{ 
+                  filter: 'none',
+                  background: 'transparent'
+                }}
+                onPlay={() => speakFullTranscript()}
+                onPause={() => stopSpeech()}
+              >
+                <source src="" type="audio/mpeg" />
+                Your browser does not support the audio element.
+              </audio>
+              {/* Hidden overlay to intercept clicks */}
+              <div 
+                className="w-[calc(100%+22px)] -ml-[22px] h-12 -mt-12 relative z-10 cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (speakingType === 'transcript' && isSpeaking) {
+                    stopSpeech();
+                  } else {
+                    speakFullTranscript();
+                  }
+                }}
+              />
+            </div>
+          )}
 
           {/* Transcript header and content combined */}
           {hasTranscriptions ? (
@@ -310,6 +392,25 @@ const NoteDetail = () => {
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-medium text-foreground">Summary</h3>
                     {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    {!summaryLoading && transcriptSummary && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => 
+                          speakingType === 'summary' && isSpeaking 
+                            ? stopSpeech() 
+                            : speakText(transcriptSummary, 'summary')
+                        }
+                        className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
+                        aria-label={speakingType === 'summary' && isSpeaking ? "Stop reading summary" : "Read summary"}
+                      >
+                        {speakingType === 'summary' && isSpeaking ? (
+                          <Square className="h-3 w-3" />
+                        ) : (
+                          <Play className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                   <p className="text-muted-foreground leading-6">{transcriptSummary}</p>
                 </div>

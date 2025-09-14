@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Image, Clock, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Image, Clock, Eye, Play, Square } from "lucide-react";
 import type { PhotoContextPair } from "@/utils/photoContext";
 
 interface PhotoContextDisplayProps {
@@ -10,6 +11,55 @@ interface PhotoContextDisplayProps {
 }
 
 export const PhotoContextDisplay = ({ photoContextPairs, className = "" }: PhotoContextDisplayProps) => {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentUtterance, setCurrentUtterance] = useState<SpeechSynthesisUtterance | null>(null);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+
+  // Text-to-speech functions
+  const speakText = (text: string, index: number) => {
+    if (!window.speechSynthesis) {
+      alert('Text-to-speech is not supported in your browser.');
+      return;
+    }
+
+    // Stop any current speech
+    stopSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 0.8;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setSpeakingIndex(index);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingIndex(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingIndex(null);
+    };
+
+    setCurrentUtterance(utterance);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeech = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setCurrentUtterance(null);
+      setSpeakingIndex(null);
+    }
+  };
+
   if (photoContextPairs.length === 0) {
     return null;
   }
@@ -52,9 +102,28 @@ export const PhotoContextDisplay = ({ photoContextPairs, className = "" }: Photo
                 )}
               </div>
               
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {pair.context}
-              </p>
+              <div className="flex items-start gap-2">
+                <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                  {pair.context}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => 
+                    speakingIndex === index && isSpeaking 
+                      ? stopSpeech() 
+                      : speakText(pair.context, index)
+                  }
+                  className="flex-shrink-0 p-1 h-6 w-6 hover:bg-muted-foreground/10"
+                  aria-label={speakingIndex === index && isSpeaking ? "Stop reading" : "Read image description"}
+                >
+                  {speakingIndex === index && isSpeaking ? (
+                    <Square className="h-3 w-3" />
+                  ) : (
+                    <Play className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
               
               {/* Show related transcription snippets */}
               {pair.relatedTranscriptions.length > 0 && (
