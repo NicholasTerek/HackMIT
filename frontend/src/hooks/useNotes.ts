@@ -74,7 +74,11 @@ export const useNotes = () => {
 
   // Parse transcription lines to extract timestamp and text
   const parseTranscriptionEntry = (line: string): TranscriptionEntry | null => {
-    const match = line.match(/^\[(.*?)\]\s*(.*)$/);
+    // Normalize line endings and trim whitespace for cross-platform compatibility
+    const normalizedLine = line.replace(/\r\n|\r|\n/g, '').trim();
+    
+    // More flexible regex that handles various line ending formats
+    const match = normalizedLine.match(/^\[(.*?)\]\s*(.*)$/);
     if (!match) return null;
     
     const timestampStr = match[1];
@@ -136,6 +140,11 @@ export const useNotes = () => {
     console.log(`📊 Transcription parsing: ${parsedLines}/${totalLines} lines parsed successfully`);
     if (parsedLines === 0 && totalLines > 0) {
       console.error('🚨 No transcription lines were parsed! Check date format compatibility.');
+      // Debug: Show first few lines to help identify the format
+      const firstFewLines = transcriptions.flatMap(t => t.lines).slice(0, 3);
+      console.log('🔍 First few lines for debugging:', firstFewLines.map(line => 
+        `"${line}" (length: ${line.length}, chars: ${line.split('').map(c => c.charCodeAt(0)).join(',')})`
+      ));
     }
     
     // Sort by timestamp
