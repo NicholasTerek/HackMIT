@@ -1,0 +1,5 @@
+A laptop screen displays a presentation slide about "Representable Numbers" 
+from Carnegie Mellon. The slide shows binary representations of decimal 
+numbers and discusses floating point representation. In the bottom right 
+corner, there's a small video feed showing what appears to be an instructor 
+in a classroom setting.

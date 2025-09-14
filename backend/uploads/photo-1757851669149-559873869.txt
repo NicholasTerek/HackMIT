@@ -1,0 +1,1 @@
+A computer screen displaying a presentation slide about numbers, specifically discussing binary representations and numbers of the form x/2^n. The slide shows binary code examples with repeating bit patterns in brackets.
