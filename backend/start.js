@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-const { callClaudeWithImage } = require('./llm');
+const { callClaudeWithImage, callClaudeWithPrompt } = require('./llm');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -213,7 +213,7 @@ app.post('/upload-direct', upload.single('photo'), (req, res) => {
 });
 
 // Transcription endpoint for teacher notes
-app.post('/transcription', (req, res) => {
+app.post('/transcription', async (req, res) => {
     console.log('🎤 Transcription received');
     
     try {
@@ -243,9 +243,28 @@ app.post('/transcription', (req, res) => {
         
         console.log(`✅ Transcription saved: "${text.substring(0, 50)}..." to daily log`);
         
+        // Call Claude AI to analyze the transcription text
+        try {
+            const analysisPrompt = `Analyze this transcription text and provide key insights, main topics, and a brief summary: "${text}"`;
+            const aiAnalysis = await callClaudeWithPrompt(analysisPrompt);
+            console.log('🤖 AI Analysis:', aiAnalysis);
+            
+            // Save AI analysis to .txt file with same name as log file
+            const analysisFile = path.join(transcriptionsDir, `${dateStr}-${userId}-analysis.txt`);
+            const analysisEntry = `[${timestamp || now.toISOString()}] Analysis for: "${text.substring(0, 100)}..."\n\n${aiAnalysis}\n\n---\n\n`;
+            
+            // Append to analysis file (so multiple transcriptions build up analysis)
+            fs.appendFileSync(analysisFile, analysisEntry);
+            
+            console.log(`✅ AI Analysis saved to: ${dateStr}-${userId}-analysis.txt`);
+        } catch (aiError) {
+            console.error('❌ AI Analysis failed:', aiError);
+            // Don't fail the transcription save if AI analysis fails
+        }
+        
         res.json({
             success: true,
-            message: 'Transcription saved to daily log',
+            message: 'Transcription saved to daily log with AI analysis',
             dailyLog: `${dateStr}-${userId}.log`
         });
         
