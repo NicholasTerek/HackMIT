@@ -1,0 +1,80 @@
+import { useQuery } from '@tanstack/react-query';
+
+export interface Photo {
+  filename: string;
+  path: string;
+  uploadTime: string;
+  size?: number;
+}
+
+export interface PhotosResponse {
+  success: boolean;
+  photos: Photo[];
+  message?: string;
+}
+
+// Backend server URL - adjust if your backend runs on a different port
+const BACKEND_URL = 'http://localhost:3001';
+
+const fetchPhotos = async (): Promise<Photo[]> => {
+  const response = await fetch(`${BACKEND_URL}/photos`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch photos');
+  }
+  const data: PhotosResponse = await response.json();
+  return data.success ? data.photos : [];
+};
+
+const fetchGlassPhotos = async (): Promise<Photo[]> => {
+  const response = await fetch(`${BACKEND_URL}/glass-photos`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch Glass photos');
+  }
+  const data: PhotosResponse = await response.json();
+  return data.success ? data.photos : [];
+};
+
+export const usePhotos = () => {
+  const {
+    data: photos = [],
+    isLoading: photosLoading,
+    error: photosError,
+    refetch: refetchPhotos
+  } = useQuery({
+    queryKey: ['photos'],
+    queryFn: fetchPhotos,
+    refetchInterval: 5000, // Refetch every 5 seconds like the HTML version
+    retry: 3,
+    retryDelay: 1000
+  });
+
+  const {
+    data: glassPhotos = [],
+    isLoading: glassPhotosLoading,
+    error: glassPhotosError,
+    refetch: refetchGlassPhotos
+  } = useQuery({
+    queryKey: ['glass-photos'],
+    queryFn: fetchGlassPhotos,
+    refetchInterval: 5000, // Refetch every 5 seconds like the HTML version
+    retry: 3,
+    retryDelay: 1000
+  });
+
+  return {
+    photos,
+    glassPhotos,
+    isLoading: photosLoading || glassPhotosLoading,
+    photosLoading,
+    glassPhotosLoading,
+    error: photosError || glassPhotosError,
+    photosError,
+    glassPhotosError,
+    refetchPhotos,
+    refetchGlassPhotos,
+    refetchAll: () => {
+      refetchPhotos();
+      refetchGlassPhotos();
+    }
+  };
+};

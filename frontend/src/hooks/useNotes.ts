@@ -1,17 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Note } from "@/components/NoteCard";
+import { usePhotos } from "./usePhotos";
+import { useTranscriptions } from "./useTranscriptions";
+import type { Photo } from "./usePhotos";
+import type { Transcription } from "./useTranscriptions";
 
 const STORAGE_KEY = "notes-app-data";
+const SEVEN_MINUTES_MS = 7 * 60 * 1000; // 7 minutes in milliseconds
+
+export interface TranscriptionEntry {
+  timestamp: Date;
+  text: string;
+  originalLine: string;
+}
+
+export interface EnhancedNote extends Note {
+  transcriptionEntries?: TranscriptionEntry[];
+  photos?: Photo[];
+  startTime?: Date;
+  endTime?: Date;
+  duration?: number; // in minutes
+  isGenerated?: boolean; // true for auto-generated notes from transcriptions
+}
 
 export const useNotes = () => {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [manualNotes, setManualNotes] = useState<Note[]>([]);
+  const { photos, glassPhotos, isLoading: photosLoading, error: photosError } = usePhotos();
+  const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
 
-  // Load notes from localStorage on mount
+  // Load manual notes from localStorage on mount
   useEffect(() => {
     const storedNotes = localStorage.getItem(STORAGE_KEY);
     if (storedNotes) {
       try {
-        setNotes(JSON.parse(storedNotes));
+        setManualNotes(JSON.parse(storedNotes));
       } catch (error) {
         console.error("Error loading notes from localStorage:", error);
       }
@@ -35,20 +57,177 @@ export const useNotes = () => {
         },
         {
           id: crypto.randomUUID(),
-          title: "Today’s Thoughts",
+          title: "Today's Thoughts",
           content: "Write a few lines about your day...",
           createdAt: now,
           updatedAt: now,
         },
       ];
-      setNotes(sampleNotes);
+      setManualNotes(sampleNotes);
     }
   }, []);
 
-  // Save notes to localStorage whenever notes change
+  // Save manual notes to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  }, [notes]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(manualNotes));
+  }, [manualNotes]);
+
+  // Parse transcription lines to extract timestamp and text
+  const parseTranscriptionEntry = (line: string): TranscriptionEntry | null => {
+    const match = line.match(/^\[(.*?)\]\s*(.*)$/);
+    if (!match) return null;
+    
+    const timestampStr = match[1];
+    const text = match[2];
+    
+    try {
+      const timestamp = new Date(timestampStr);
+      if (isNaN(timestamp.getTime())) return null;
+      
+      return {
+        timestamp,
+        text: text.trim(),
+        originalLine: line
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  // Get all transcription entries from all transcription files
+  const getAllTranscriptionEntries = (transcriptions: Transcription[]): TranscriptionEntry[] => {
+    const entries: TranscriptionEntry[] = [];
+    
+    transcriptions.forEach(transcription => {
+      transcription.lines.forEach(line => {
+        const entry = parseTranscriptionEntry(line);
+        if (entry) {
+          entries.push(entry);
+        }
+      });
+    });
+    
+    // Sort by timestamp
+    return entries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  };
+
+  // Group transcription entries based on 7-minute rule
+  const groupTranscriptionEntries = (entries: TranscriptionEntry[]): TranscriptionEntry[][] => {
+    if (entries.length === 0) return [];
+    
+    const groups: TranscriptionEntry[][] = [];
+    let currentGroup: TranscriptionEntry[] = [entries[0]];
+    
+    for (let i = 1; i < entries.length; i++) {
+      const currentEntry = entries[i];
+      const lastEntryInGroup = currentGroup[currentGroup.length - 1];
+      
+      const timeDiff = currentEntry.timestamp.getTime() - lastEntryInGroup.timestamp.getTime();
+      
+      if (timeDiff <= SEVEN_MINUTES_MS) {
+        // Within 7 minutes, add to current group
+        currentGroup.push(currentEntry);
+      } else {
+        // More than 7 minutes, start new group
+        groups.push(currentGroup);
+        currentGroup = [currentEntry];
+      }
+    }
+    
+    // Don't forget the last group
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+    
+    return groups;
+  };
+
+  // Find photos that fall within the time bounds of a note
+  const getPhotosForTimeRange = (photos: Photo[], startTime: Date, endTime: Date, usedPhotos: Set<string>): Photo[] => {
+    return photos.filter(photo => {
+      const photoTime = new Date(photo.uploadTime);
+      const isInTimeRange = photoTime >= startTime && photoTime <= endTime;
+      const isNotUsed = !usedPhotos.has(photo.filename);
+      return isInTimeRange && isNotUsed;
+    });
+  };
+
+  // Generate a title for a note based on its content
+  const generateNoteTitle = (entries: TranscriptionEntry[]): string => {
+    if (entries.length === 0) return 'Empty Note';
+    
+    const firstEntry = entries[0];
+    const words = firstEntry.text.split(' ').slice(0, 6); // First 6 words
+    let title = words.join(' ');
+    
+    if (firstEntry.text.split(' ').length > 6) {
+      title += '...';
+    }
+    
+    return title || `Note from ${firstEntry.timestamp.toLocaleTimeString()}`;
+  };
+
+  // Generate enhanced notes from transcriptions and photos
+  const generatedNotes = useMemo(() => {
+    if (transcriptionsLoading || photosLoading) return [];
+    
+    // Combine all photos
+    const allPhotos = [...photos, ...glassPhotos];
+    
+    // Get all transcription entries
+    const allEntries = getAllTranscriptionEntries(transcriptions);
+    
+    if (allEntries.length === 0) return [];
+    
+    // Group entries by 7-minute rule
+    const entryGroups = groupTranscriptionEntries(allEntries);
+    
+    // Track used photos to prevent duplicates
+    const usedPhotos = new Set<string>();
+    
+    // Create enhanced notes
+    const notes: EnhancedNote[] = entryGroups.map((group, index) => {
+      const startTime = group[0].timestamp;
+      const endTime = group[group.length - 1].timestamp;
+      
+      // Find photos within this time range that haven't been used
+      const notesPhotos = getPhotosForTimeRange(allPhotos, startTime, endTime, usedPhotos);
+      
+      // Mark these photos as used
+      notesPhotos.forEach(photo => usedPhotos.add(photo.filename));
+      
+      const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60); // minutes
+      const title = generateNoteTitle(group);
+      
+      // Create content from transcription entries
+      const content = group.map(entry => 
+        `[${entry.timestamp.toLocaleTimeString()}] ${entry.text}`
+      ).join('\n\n');
+      
+      return {
+        id: `generated-${index}-${startTime.getTime()}`,
+        title,
+        content,
+        createdAt: startTime.toISOString(),
+        updatedAt: endTime.toISOString(),
+        transcriptionEntries: group,
+        photos: notesPhotos,
+        startTime,
+        endTime,
+        duration,
+        isGenerated: true
+      };
+    });
+    
+    return notes.reverse(); // Most recent first
+  }, [photos, glassPhotos, transcriptions, photosLoading, transcriptionsLoading]);
+
+  // Combine manual and generated notes
+  const allNotes = useMemo(() => {
+    return [...generatedNotes, ...manualNotes].sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }, [generatedNotes, manualNotes]);
 
   const addNote = (noteData: Omit<Note, "id" | "createdAt" | "updatedAt">) => {
     const newNote: Note = {
@@ -57,24 +236,30 @@ export const useNotes = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setNotes((prev) => [newNote, ...prev]);
+    setManualNotes((prev) => [newNote, ...prev]);
   };
 
   const updateNote = (updatedNote: Note) => {
-    setNotes((prev) =>
+    // Only allow updating manual notes, not generated ones
+    if (updatedNote.id.startsWith('generated-')) return;
+    
+    setManualNotes((prev) =>
       prev.map((note) => (note.id === updatedNote.id ? updatedNote : note))
     );
   };
 
   const deleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((note) => note.id !== id));
+    // Only allow deleting manual notes, not generated ones
+    if (id.startsWith('generated-')) return;
+    
+    setManualNotes((prev) => prev.filter((note) => note.id !== id));
   };
 
   const searchNotes = (searchTerm: string) => {
-    if (!searchTerm.trim()) return notes;
+    if (!searchTerm.trim()) return allNotes;
     
     const term = searchTerm.toLowerCase();
-    return notes.filter(
+    return allNotes.filter(
       (note) =>
         note.title.toLowerCase().includes(term) ||
         note.content.toLowerCase().includes(term)
@@ -82,10 +267,17 @@ export const useNotes = () => {
   };
 
   return {
-    notes,
+    notes: allNotes,
+    manualNotes,
+    generatedNotes,
     addNote,
     updateNote,
     deleteNote,
     searchNotes,
+    isLoading: photosLoading || transcriptionsLoading,
+    error: photosError || transcriptionsError,
+    totalGeneratedNotes: generatedNotes.length,
+    totalEntries: generatedNotes.reduce((sum, note) => sum + (note.transcriptionEntries?.length || 0), 0),
+    totalPhotos: generatedNotes.reduce((sum, note) => sum + (note.photos?.length || 0), 0)
   };
 };

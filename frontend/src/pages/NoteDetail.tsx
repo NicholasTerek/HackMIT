@@ -12,6 +12,17 @@ const NoteDetail = () => {
   const { notes, updateNote, deleteNote } = useNotes();
 
   const note = useMemo(() => notes.find((n) => n.id === id), [notes, id]);
+  
+  // Check if this is an enhanced note with photos
+  const enhancedNote = note as any; // Cast to access enhanced properties
+  
+  // Deduplicate photos by filename to prevent duplicates
+  const uniquePhotos = enhancedNote?.photos ? 
+    enhancedNote.photos.filter((photo: any, index: number, array: any[]) => 
+      array.findIndex((p: any) => p.filename === photo.filename) === index
+    ) : [];
+  
+  const hasPhotos = uniquePhotos.length > 0;
   const PlaceholderDoc = () => (
     <div className="space-y-6 leading-7">
       <h2 className="text-2xl font-semibold">Lecture Overview</h2>
@@ -136,28 +147,39 @@ const NoteDetail = () => {
           </div>
         </div>
 
-        {/* Sidebar with image placeholders */}
+        {/* Sidebar with actual photos */}
         <aside className="lg:col-span-1">
           <div className="rounded-md p-4 space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => {
-              const src = `https://picsum.photos/seed/${(id ?? "note") + "-" + i}/1200/900`;
-              return (
-                <Dialog key={i}>
-                  <DialogTrigger asChild>
-                    <button className="aspect-[4/3] w-full overflow-hidden rounded-md bg-secondary cursor-zoom-in focus:outline-none">
-                      <img
-                        src={src}
-                        alt="Placeholder"
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-5xl p-0 border-0 bg-transparent shadow-none">
-                    <img src={src} alt="Expanded" className="w-full h-auto rounded-lg" />
-                  </DialogContent>
-                </Dialog>
-              );
-            })}
+            {hasPhotos ? (
+              uniquePhotos.map((photo: any, i: number) => {
+                const src = `http://localhost:3001${photo.path}`;
+                return (
+                  <Dialog key={photo.filename}>
+                    <DialogTrigger asChild>
+                      <button className="aspect-[4/3] w-full overflow-hidden rounded-md bg-secondary cursor-zoom-in focus:outline-none">
+                        <img
+                          src={src}
+                          alt={photo.filename}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            // Hide broken images
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-5xl p-0 border-0 bg-transparent shadow-none">
+                      <img src={src} alt={photo.filename} className="w-full h-auto rounded-lg" />
+                    </DialogContent>
+                  </Dialog>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No photos for this note</p>
+              </div>
+            )}
           </div>
         </aside>
 
