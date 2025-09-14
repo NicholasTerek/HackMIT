@@ -71,8 +71,39 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      {/* Top Bar aligned to notes container width */}
+      <header className="pt-4 px-4 md:px-6 lg:px-8">
+        <div className="w-full flex items-center justify-between">
+          {/* Logo: blue dot */}
+          <div className="flex items-center gap-2">
+            <div
+              aria-label="App logo"
+              className="rounded-full ml-[10px]"
+              style={{ backgroundColor: '#1C2ED8', width: '35px', height: '35px' }}
+            />
+            <span
+              className="font-bold text-neutral-900 select-none"
+              style={{ fontSize: '32px', lineHeight: '32px', letterSpacing: '-0.05em' }}
+            >
+              blue
+            </span>
+          </div>
+
+          {/* Profile button on the right */}
+          <div className="flex items-center">
+            <Button
+              aria-label="Profile"
+              className="h-9 w-9 rounded-full bg-neutral-900 text-white hover:bg-neutral-800"
+            >
+              <span className="sr-only">Profile</span>
+              {/* simple placeholder dot/avatar */}
+              <div className="h-4 w-4 rounded-full bg-white/90" />
+            </Button>
+          </div>
+        </div>
+      </header>
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-4 pt-32 pb-12 text-center">
+      <section className="max-w-5xl mx-auto px-4 pt-[196px] pb-12 text-center">
         <h1 className="mx-auto max-w-3xl text-5xl md:text-6xl font-semibold tracking-tight leading-tight mb-6">
           Learning Made Auditory for Dyslexic Students
         </h1>
@@ -92,7 +123,7 @@ const Index = () => {
       <main className="max-w-6xl mx-auto px-4 pb-12">
 
         {/* Smart Notes Section - Primary Content */}
-        <section className="mt-16 space-y-8">
+        <section className="mt-4 space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
