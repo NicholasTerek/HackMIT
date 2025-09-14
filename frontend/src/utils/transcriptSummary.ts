@@ -7,52 +7,75 @@ export interface SummaryOptions {
 /**
  * Generate a rule-based summary of transcript entries
  */
-export async function generateTranscriptSummary(
+export const generateTranscriptSummary = async (
   entries: TranscriptionEntry[],
   options: SummaryOptions = {}
-): Promise<string> {
+): Promise<string> => {
   if (!entries || entries.length === 0) {
-    return 'No transcript available to summarize.';
+    return 'No transcription content available.';
   }
 
-  // Combine all transcript text
-  const fullTranscript = entries
-    .map(entry => entry.text)
-    .join(' ')
-    .trim();
-
-  if (!fullTranscript) {
-    return 'No transcript content available to summarize.';
-  }
-
-  // Rule-based summarization
-  const sentences = fullTranscript
-    .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 10); // Filter out very short fragments
-
-  const maxLength = options.maxLength || 200;
+  const { maxLength = 200 } = options;
   
-  if (sentences.length === 0) {
-    return 'Unable to extract meaningful content from transcript.';
-  }
+  // Combine all transcript text
+  const fullText = entries.map(entry => entry.text).join(' ');
+  
+  try {
+    // Call the backend AI chat endpoint for summarization
+    const response = await fetch('http://localhost:3001/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: `Please provide a concise summary of this transcription in ${maxLength} characters or less. Focus on the main topics and key points discussed: ${fullText}`,
+        noteContext: fullText
+      }),
+    });
 
-  // Take first few sentences up to maxLength
-  let summary = '';
-  for (const sentence of sentences) {
-    if (summary.length + sentence.length + 2 > maxLength) {
-      break;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    summary += (summary ? '. ' : '') + sentence;
-  }
 
-  // If we got something, add period if needed
-  if (summary && !summary.match(/[.!?]$/)) {
-    summary += '.';
+    const data = await response.json();
+    
+    if (data.success && data.answer) {
+      return data.answer.trim();
+    } else {
+      throw new Error('AI summary generation failed');
+    }
+  } catch (error) {
+    console.warn('AI summarization failed, falling back to extractive summary:', error);
+    
+    // Fallback to simple extractive summarization
+    const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    
+    if (sentences.length <= 2) {
+      return fullText.substring(0, maxLength) + (fullText.length > maxLength ? '...' : '');
+    }
+    
+    // Score sentences by length and position (first and last sentences get higher scores)
+    const scoredSentences = sentences.map((sentence, index) => ({
+      sentence: sentence.trim(),
+      score: sentence.trim().length + (index === 0 || index === sentences.length - 1 ? 20 : 0)
+    }));
+    
+    // Sort by score and take top sentences
+    const topSentences = scoredSentences
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.min(3, sentences.length))
+      .map(item => item.sentence);
+    
+    let summary = topSentences.join('. ');
+    
+    // Truncate if too long
+    if (summary.length > maxLength) {
+      summary = summary.substring(0, maxLength) + '...';
+    }
+    
+    return summary || 'Unable to generate summary from transcription.';
   }
-
-  return summary || sentences[0] + '.';
-}
+};
 
 /**
  * Extracts key topics/keywords from transcription entries

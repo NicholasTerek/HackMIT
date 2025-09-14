@@ -33,6 +33,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredNotes, setFilteredNotes] = useState(notes);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchVersion, setSearchVersion] = useState(0);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -47,6 +48,9 @@ const Index = () => {
   // Handle async search
   useEffect(() => {
     const performSearch = async () => {
+      const currentVersion = searchVersion + 1;
+      setSearchVersion(currentVersion);
+      
       if (!searchTerm.trim()) {
         setFilteredNotes(notes);
         setIsSearching(false);
@@ -56,18 +60,26 @@ const Index = () => {
       setIsSearching(true);
       try {
         const results = await searchNotes(searchTerm);
-        setFilteredNotes(results);
+        
+        // Only update if this is still the latest search
+        if (currentVersion === searchVersion + 1) {
+          setFilteredNotes(results);
+        }
       } catch (error) {
         console.error('Search error:', error);
-        setFilteredNotes([]);
+        if (currentVersion === searchVersion + 1) {
+          setFilteredNotes([]);
+        }
       } finally {
-        setIsSearching(false);
+        if (currentVersion === searchVersion + 1) {
+          setIsSearching(false);
+        }
       }
     };
 
     const debounceTimer = setTimeout(performSearch, 300); // Debounce search
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm, notes, searchNotes]);
+  }, [searchTerm, notes]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

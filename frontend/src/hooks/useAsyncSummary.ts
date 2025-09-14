@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { generateTranscriptSummary } from '@/utils/transcriptSummary';
 import type { SummaryOptions } from '@/utils/transcriptSummary';
 import type { EnhancedNote, TranscriptionEntry } from '@/hooks/useNotes';
+
+// Cache to store summaries by note ID
+const summaryCache = new Map<string, string>();
 
 export const useAsyncSummary = (
   entries: TranscriptionEntry[] | undefined,
@@ -11,6 +14,7 @@ export const useAsyncSummary = (
   const [summary, setSummary] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasGeneratedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!entries || entries.length === 0) {
@@ -26,7 +30,22 @@ export const useAsyncSummary = (
       return;
     }
 
-    // Generate rule-based summary immediately
+    // Check if we already have a cached summary
+    const cachedSummary = summaryCache.get(note.id);
+    if (cachedSummary) {
+      setSummary(cachedSummary);
+      setIsLoading(false);
+      setError(null);
+      hasGeneratedRef.current[note.id] = true; // Mark as generated since we have cache
+      return;
+    }
+
+    // Don't regenerate if we've already generated for this note
+    if (hasGeneratedRef.current[note.id]) {
+      return;
+    }
+
+    // Generate summary only once
     let isCancelled = false;
     
     const generateSummary = async () => {
@@ -39,6 +58,9 @@ export const useAsyncSummary = (
         
         if (!isCancelled) {
           setSummary(newSummary);
+          // Cache the summary
+          summaryCache.set(note.id, newSummary);
+          hasGeneratedRef.current[note.id] = true; // Mark as generated after successful generation
         }
       } catch (err) {
         if (!isCancelled) {
@@ -46,6 +68,7 @@ export const useAsyncSummary = (
           console.error('❌ Summary generation failed:', errorMessage);
           setError(errorMessage);
           setSummary('Failed to generate summary.');
+          hasGeneratedRef.current[note.id] = true; // Mark as generated even on error to prevent retries
         }
       } finally {
         if (!isCancelled) {
@@ -59,7 +82,31 @@ export const useAsyncSummary = (
     return () => {
       isCancelled = true;
     };
-  }, [entries, options.maxLength, note?.id]);
+  }, [note?.id]); // Only depend on note ID, not entries or options
 
-  return { summary, isLoading, error };
+  // Function to manually regenerate summary
+  const regenerateSummary = async () => {
+    if (!entries || !note?.id) return;
+    
+    hasGeneratedRef.current[note.id] = false;
+    summaryCache.delete(note.id);
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const newSummary = await generateTranscriptSummary(entries, options);
+      setSummary(newSummary);
+      summaryCache.set(note.id, newSummary);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate summary';
+      setError(errorMessage);
+      setSummary('Failed to generate summary.');
+    } finally {
+      setIsLoading(false);
+      hasGeneratedRef.current[note.id] = true;
+    }
+  };
+
+  return { summary, isLoading, error, regenerateSummary };
 };

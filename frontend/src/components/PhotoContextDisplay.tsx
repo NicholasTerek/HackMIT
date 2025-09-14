@@ -95,7 +95,7 @@ export const PhotoContextDisplay = ({ photoContextPairs, className = "" }: Photo
                   {pair.timestamp.toLocaleTimeString()}
                 </Badge>
                 {pair.relatedTranscriptions.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs sr-only">
                     <Eye className="h-3 w-3 mr-1" />
                     {pair.relatedTranscriptions.length} related
                   </Badge>
@@ -125,10 +125,10 @@ export const PhotoContextDisplay = ({ photoContextPairs, className = "" }: Photo
                 </Button>
               </div>
               
-              {/* Show related transcription snippets */}
+              {/* Hidden related transcription snippets for search functionality */}
               {pair.relatedTranscriptions.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground/80">
+                <div className="sr-only">
+                  <p>
                     Related: "{pair.relatedTranscriptions[0].text.substring(0, 80)}..."
                   </p>
                 </div>

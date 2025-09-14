@@ -98,7 +98,7 @@ const NoteDetail = () => {
   const hasTranscriptions = enhancedNote?.transcriptionEntries && enhancedNote.transcriptionEntries.length > 0;
   
   // Use async summary hook for Claude API integration
-  const { summary: transcriptSummary, isLoading: summaryLoading } = useAsyncSummary(
+  const { summary: transcriptSummary, isLoading: summaryLoading, regenerateSummary } = useAsyncSummary(
     hasTranscriptions ? enhancedNote.transcriptionEntries : undefined,
     { maxLength: 200 },
     enhancedNote
@@ -393,23 +393,37 @@ const NoteDetail = () => {
                     <h3 className="font-medium text-foreground">Summary</h3>
                     {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                     {!summaryLoading && transcriptSummary && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => 
-                          speakingType === 'summary' && isSpeaking 
-                            ? stopSpeech() 
-                            : speakText(transcriptSummary, 'summary')
-                        }
-                        className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
-                        aria-label={speakingType === 'summary' && isSpeaking ? "Stop reading summary" : "Read summary"}
-                      >
-                        {speakingType === 'summary' && isSpeaking ? (
-                          <Square className="h-3 w-3" />
-                        ) : (
-                          <Play className="h-3 w-3" />
-                        )}
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => 
+                            speakingType === 'summary' && isSpeaking 
+                              ? stopSpeech() 
+                              : speakText(transcriptSummary, 'summary')
+                          }
+                          className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
+                          aria-label={speakingType === 'summary' && isSpeaking ? "Stop reading summary" : "Read summary"}
+                        >
+                          {speakingType === 'summary' && isSpeaking ? (
+                            <Square className="h-3 w-3" />
+                          ) : (
+                            <Play className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={regenerateSummary}
+                          className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
+                          aria-label="Regenerate summary"
+                          title="Regenerate summary"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </Button>
+                      </>
                     )}
                   </div>
                   <p className="text-muted-foreground leading-6">{transcriptSummary}</p>
