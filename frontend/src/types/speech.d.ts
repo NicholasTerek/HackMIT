@@ -75,7 +75,65 @@ declare var webkitSpeechRecognition: {
   new(): SpeechRecognition;
 };
 
+// Speech Synthesis API declarations
+interface SpeechSynthesisUtterance {
+  text: string;
+  lang: string;
+  voice: SpeechSynthesisVoice | null;
+  volume: number;
+  rate: number;
+  pitch: number;
+  
+  onstart: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+  onend: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+  onerror: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisErrorEvent) => any) | null;
+  onpause: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+  onresume: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+  onmark: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+  onboundary: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null;
+}
+
+interface SpeechSynthesisEvent extends Event {
+  readonly utterance: SpeechSynthesisUtterance;
+  readonly charIndex: number;
+  readonly charLength: number;
+  readonly elapsedTime: number;
+  readonly name: string;
+}
+
+interface SpeechSynthesisErrorEvent extends SpeechSynthesisEvent {
+  readonly error: string;
+}
+
+interface SpeechSynthesisVoice {
+  readonly voiceURI: string;
+  readonly name: string;
+  readonly lang: string;
+  readonly localService: boolean;
+  readonly default: boolean;
+}
+
+interface SpeechSynthesis extends EventTarget {
+  readonly pending: boolean;
+  readonly speaking: boolean;
+  readonly paused: boolean;
+  
+  speak(utterance: SpeechSynthesisUtterance): void;
+  cancel(): void;
+  pause(): void;
+  resume(): void;
+  getVoices(): SpeechSynthesisVoice[];
+  
+  onvoiceschanged: ((this: SpeechSynthesis, ev: Event) => any) | null;
+}
+
+declare var SpeechSynthesisUtterance: {
+  prototype: SpeechSynthesisUtterance;
+  new(text?: string): SpeechSynthesisUtterance;
+};
+
 interface Window {
   SpeechRecognition: typeof SpeechRecognition;
   webkitSpeechRecognition: typeof webkitSpeechRecognition;
+  speechSynthesis: SpeechSynthesis;
 }
