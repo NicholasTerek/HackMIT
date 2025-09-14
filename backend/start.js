@@ -89,7 +89,12 @@ app.post('/upload', async (req, res) => {
             
             const result = await callClaudeWithImage(req.file.path, 'Describe this image.');
             console.log(result);
-
+            
+            // Save Claude description to .txt file with same name as image
+            const imageBaseName = path.parse(req.file.filename).name; // removes extension
+            const descriptionFile = path.join(uploadsDir, imageBaseName + '.txt');
+            fs.writeFileSync(descriptionFile, result);
+            
             res.json({
                 success: true,
                 message: 'Photo uploaded successfully',
