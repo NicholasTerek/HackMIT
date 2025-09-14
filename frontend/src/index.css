@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 0 0% 20%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 20%;
+
+    --destructive: 0 0% 20%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 92%;
+    --ring: 0 0% 10%;
+
+    /* Note app specific tokens */
+    --note-shadow: 0 0% 70%;
+    --note-hover: 0 0% 98%;
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(0 0% 98%));
+    --shadow-soft: 0 2px 12px -2px hsl(var(--note-shadow) / 0.3);
+    --shadow-elevation: 0 8px 32px -8px hsl(var(--note-shadow) / 0.4);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 92%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 92%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 92%;
+
+    --primary: 0 0% 92%;
+    --primary-foreground: 0 0% 6%;
+    --primary-glow: 0 0% 80%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 92%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 92%;
+
+    --destructive: 0 0% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 12%;
+    --ring: 0 0% 92%;
+
+    /* Dark mode note tokens */
+    --note-shadow: 0 0% 2%;
+    --note-hover: 0 0% 12%;
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(0 0% 10%));
+    --shadow-soft: 0 2px 12px -2px hsl(var(--note-shadow) / 0.6);
+    --shadow-elevation: 0 8px 32px -8px hsl(var(--note-shadow) / 0.8);
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 0 0% 96%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 0 0% 96%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Subtle card grid look inspired by the provided reference */
+@layer components {
+  .note-card-colors:nth-child(6n+1) { background-color: hsl(0 0% 96% / 1); }
+  .note-card-colors:nth-child(6n+2) { background-color: hsl(0 0% 92% / 1); }
+  .note-card-colors:nth-child(6n+3) { background-color: hsl(0 0% 88% / 1); }
+  .note-card-colors:nth-child(6n+4) { background-color: hsl(0 0% 94% / 1); }
+  .note-card-colors:nth-child(6n+5) { background-color: hsl(0 0% 90% / 1); }
+  .note-card-colors:nth-child(6n+6) { background-color: hsl(0 0% 86% / 1); }
+}
+
+/* Make native audio controls background transparent (Chrome/WebKit) */
+audio {
+  background: transparent !important;
+}
+audio::-webkit-media-controls-panel,
+audio::-webkit-media-controls-enclosure,
+audio::-webkit-media-controls {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
