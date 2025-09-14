@@ -79,7 +79,7 @@ const NoteDetail = () => {
 
   const [title, setTitle] = useState(note?.title ?? "Untitled Audio Note");
   const [content, setContent] = useState(note?.content ?? "");
-  const [showSummary, setShowSummary] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -271,7 +271,7 @@ const NoteDetail = () => {
       <div className="fixed inset-x-0 bottom-6 z-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <FooterSearchBar value={""} onChange={() => {}} placeholder="Ask anything" />
+            <FooterSearchBar value={searchInput} onChange={setSearchInput} placeholder="Ask anything" />
           </div>
         </div>
       </div>
