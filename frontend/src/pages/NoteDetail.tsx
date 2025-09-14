@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useNotes } from "@/hooks/useNotes";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic, MicOff, Square, Play, Pause } from "lucide-react";
+import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic, MicOff, Square } from "lucide-react";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
@@ -91,6 +92,22 @@ const NoteDetail = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentUtterance, setCurrentUtterance] = useState<SpeechSynthesisUtterance | null>(null);
   const [speakingType, setSpeakingType] = useState<'summary' | 'transcript' | null>(null);
+  const [ttsDuration, setTtsDuration] = useState<number>(0); // seconds
+  const [ttsPosition, setTtsPosition] = useState<number>(0); // seconds
+  const ttsIntervalRef = useRef<number | null>(null);
+  const [ttsSource, setTtsSource] = useState<'summary' | 'transcript' | 'other' | null>(null);
+
+  // Filled icons for simple play/stop without circles
+  const FilledPlayIcon = ({ className = "" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <polygon points="8,5 19,12 8,19" />
+    </svg>
+  );
+  const FilledStopIcon = ({ className = "" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -98,7 +115,7 @@ const NoteDetail = () => {
   const hasTranscriptions = enhancedNote?.transcriptionEntries && enhancedNote.transcriptionEntries.length > 0;
   
   // Use async summary hook for Claude API integration
-  const { summary: transcriptSummary, isLoading: summaryLoading, regenerateSummary } = useAsyncSummary(
+  const { summary: transcriptSummary, isLoading: summaryLoading } = useAsyncSummary(
     hasTranscriptions ? enhancedNote.transcriptionEntries : undefined,
     { maxLength: 200 },
     enhancedNote
@@ -204,30 +221,56 @@ const NoteDetail = () => {
     // Stop any current speech
     stopSpeech();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 0.8;
+    const startSpeak = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 0.8;
 
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setSpeakingType(type);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setSpeakingType(type);
+        setTtsSource(type);
+        if (type === 'transcript') {
+          // Only drive the slider for transcript playback
+          const estimated = Math.max(2, Math.round(text.length / 13));
+          setTtsDuration(estimated);
+          setTtsPosition(0);
+          if (ttsIntervalRef.current) window.clearInterval(ttsIntervalRef.current);
+          ttsIntervalRef.current = window.setInterval(() => {
+            setTtsPosition((prev) => Math.min(estimated, prev + 0.25));
+          }, 250);
+        }
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setCurrentUtterance(null);
+        setSpeakingType(null);
+        setTtsSource(null);
+        if (ttsIntervalRef.current) {
+          window.clearInterval(ttsIntervalRef.current);
+          ttsIntervalRef.current = null;
+        }
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setCurrentUtterance(null);
+        setSpeakingType(null);
+        setTtsSource(null);
+        if (ttsIntervalRef.current) {
+          window.clearInterval(ttsIntervalRef.current);
+          ttsIntervalRef.current = null;
+        }
+      };
+
+      setCurrentUtterance(utterance);
+      window.speechSynthesis.speak(utterance);
     };
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setCurrentUtterance(null);
-      setSpeakingType(null);
-    };
-
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      setCurrentUtterance(null);
-      setSpeakingType(null);
-    };
-
-    setCurrentUtterance(utterance);
-    window.speechSynthesis.speak(utterance);
+    // Give the engine a brief moment to cancel previous speech before starting new
+    setTimeout(startSpeak, 60);
   };
 
   const stopSpeech = () => {
@@ -236,6 +279,11 @@ const NoteDetail = () => {
       setIsSpeaking(false);
       setCurrentUtterance(null);
       setSpeakingType(null);
+      setTtsSource(null);
+      if (ttsIntervalRef.current) {
+        window.clearInterval(ttsIntervalRef.current);
+        ttsIntervalRef.current = null;
+      }
     }
   };
 
@@ -326,122 +374,110 @@ const NoteDetail = () => {
             className="w-full bg-transparent border-0 shadow-none outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-0 p-0 text-3xl md:text-4xl font-semibold"
           />
 
-          {/* Audio player for transcription */}
+          {/* Audio playback row with floating play button aligned like Visual Context */}
           {hasTranscriptions && (
-            <div className="p-0">
-              <audio 
-                className="w-[calc(100%+22px)] -ml-[22px]" 
-                controls 
-                style={{ 
-                  filter: 'none',
-                  background: 'transparent'
-                }}
-                onPlay={() => speakFullTranscript()}
-                onPause={() => stopSpeech()}
+            <div className="p-0 relative">
+              <button
+                type="button"
+                aria-label={speakingType === 'transcript' && isSpeaking ? "Stop reading transcript" : "Read full transcript"}
+                onClick={() => (speakingType === 'transcript' && isSpeaking) ? stopSpeech() : speakFullTranscript()}
+                className="absolute -left-12 top-0.5 h-8 w-8 text-neutral-400 hover:text-neutral-600 flex items-center justify-center z-30"
               >
-                <source src="" type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
-              {/* Hidden overlay to intercept clicks */}
-              <div 
-                className="w-[calc(100%+22px)] -ml-[22px] h-12 -mt-12 relative z-10 cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (speakingType === 'transcript' && isSpeaking) {
-                    stopSpeech();
-                  } else {
-                    speakFullTranscript();
-                  }
-                }}
-              />
+                {speakingType === 'transcript' && isSpeaking ? (
+                  <FilledStopIcon className="h-[1.15rem] w-[1.15rem]" />
+                ) : (
+                  <FilledPlayIcon className="h-[1.15rem] w-[1.15rem]" />
+                )}
+              </button>
+              {/* Custom slider synced with TTS */}
+              <div className="w-full">
+                <Slider
+                  value={[Math.min(ttsPosition, ttsDuration)]}
+                  max={Math.max(1, ttsDuration)}
+                  step={0.25}
+                  onValueChange={(v) => setTtsPosition(v[0] || 0)}
+                  className="py-3"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{Math.floor(ttsPosition)}s {ttsSource ? `(${ttsSource})` : ""}</span>
+                  <span>{Math.floor(ttsDuration)}s</span>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Transcript header and content combined */}
           {hasTranscriptions ? (
-            <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span>{enhancedNote.transcriptionEntries?.length} transcript entries</span>
-                  {enhancedNote.duration && (
-                    <>
-                      <span>•</span>
-                      <Clock className="h-4 w-4" />
-                      <span>{formatTranscriptDuration(enhancedNote.duration)}</span>
-                    </>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowSummary(!showSummary)}
-                  className="px-0 h-auto bg-transparent hover:bg-transparent border-0 rounded-none shadow-none text-foreground hover:text-muted-foreground transition-colors"
-                  disabled={summaryLoading}
-                >
-                  {summaryLoading
-                    ? 'Loading...'
-                    : showSummary
-                      ? 'Show Full Transcript'
-                      : 'Show Summary'}
-                </Button>
-              </div>
-
-              {showSummary ? (
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-medium text-foreground">Summary</h3>
-                    {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                    {!summaryLoading && transcriptSummary && (
+            <div className="relative">
+              <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <span>{enhancedNote.transcriptionEntries?.length} transcript entries</span>
+                    {enhancedNote.duration && (
                       <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => 
-                            speakingType === 'summary' && isSpeaking 
-                              ? stopSpeech() 
-                              : speakText(transcriptSummary, 'summary')
-                          }
-                          className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
-                          aria-label={speakingType === 'summary' && isSpeaking ? "Stop reading summary" : "Read summary"}
-                        >
-                          {speakingType === 'summary' && isSpeaking ? (
-                            <Square className="h-3 w-3" />
-                          ) : (
-                            <Play className="h-3 w-3" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={regenerateSummary}
-                          className="p-1 h-6 w-6 hover:bg-muted-foreground/10"
-                          aria-label="Regenerate summary"
-                          title="Regenerate summary"
-                        >
-                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        </Button>
+                        <span>•</span>
+                        <Clock className="h-4 w-4" />
+                        <span>{formatTranscriptDuration(enhancedNote.duration)}</span>
                       </>
                     )}
                   </div>
-                  <p className="text-muted-foreground leading-6">{transcriptSummary}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSummary(!showSummary)}
+                    className="px-0 h-auto bg-transparent hover:bg-transparent border-0 rounded-none shadow-none text-foreground hover:text-muted-foreground transition-colors"
+                    disabled={summaryLoading}
+                  >
+                    {summaryLoading
+                      ? 'Loading...'
+                      : showSummary
+                        ? 'Show Full Transcript'
+                        : 'Show Summary'}
+                  </Button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-foreground mb-3">Full Transcript</h3>
-                  {enhancedNote.transcriptionEntries?.map((entry: any, index: number) => (
-                    <div key={index} className="py-2">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {entry.timestamp.toLocaleString()}
-                      </div>
-                      <div className="text-sm">
-                        {entry.text}
-                      </div>
+
+                {showSummary ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-foreground">Summary</h3>
+                      {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
-                  ))}
-                </div>
+                    <p className="text-muted-foreground leading-6">{transcriptSummary}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-foreground mb-3">Full Transcript</h3>
+                    {enhancedNote.transcriptionEntries?.map((entry: any, index: number) => (
+                      <div key={index} className="py-2">
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {entry.timestamp.toLocaleString()}
+                        </div>
+                        <div className="text-sm">
+                          {entry.text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {showSummary && !summaryLoading && transcriptSummary && (
+                <button
+                  type="button"
+                  onClick={() => 
+                    speakingType === 'summary' && isSpeaking 
+                      ? stopSpeech() 
+                      : speakText(transcriptSummary, 'summary')
+                  }
+                  className="absolute -left-12 top-16 md:top-14 h-8 w-8 text-neutral-400 hover:text-neutral-600 flex items-center justify-center z-20"
+                  aria-label={speakingType === 'summary' && isSpeaking ? "Stop reading summary" : "Read summary"}
+                >
+                  {speakingType === 'summary' && isSpeaking ? (
+                    <FilledStopIcon className="h-[1.15rem] w-[1.15rem]" />
+                  ) : (
+                    <FilledPlayIcon className="h-[1.15rem] w-[1.15rem]" />
+                  )}
+                </button>
               )}
             </div>
           ) : (

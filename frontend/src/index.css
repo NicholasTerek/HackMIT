@@ -143,3 +143,9 @@ audio::-webkit-media-controls {
   background-color: transparent !important;
   box-shadow: none !important;
 }
+/* Hide native grey play button but keep the timeline */
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
