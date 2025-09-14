@@ -10,6 +10,7 @@ import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
 import { createPhotoContextPairs, type PhotoContextPair } from "@/utils/photoContext";
+import ChatDialog from "@/components/ChatDialog";
 
 const NoteDetail = () => {
   const navigate = useNavigate();
@@ -84,6 +85,8 @@ const NoteDetail = () => {
   const [searchInput, setSearchInput] = useState("");
   const [showSummary, setShowSummary] = useState(true);
   const [photoContextPairs, setPhotoContextPairs] = useState<PhotoContextPair[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatQuestion, setChatQuestion] = useState("");
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -136,6 +139,35 @@ const NoteDetail = () => {
   const handleDelete = () => {
     deleteNote(note.id);
     navigate("/");
+  };
+
+  const handleChatSubmit = (question: string) => {
+    if (question.trim()) {
+      setChatQuestion(question.trim());
+      setIsChatOpen(true);
+      setSearchInput(""); // Clear the search input
+    }
+  };
+
+  const handleChatClose = () => {
+    setIsChatOpen(false);
+    setChatQuestion("");
+  };
+
+  // Extract note context for AI
+  const getNoteContext = () => {
+    if (!note) return "";
+    
+    // For enhanced notes with transcription entries, use the raw transcript
+    const enhancedNote = note as any;
+    if (enhancedNote.transcriptionEntries && enhancedNote.transcriptionEntries.length > 0) {
+      return enhancedNote.transcriptionEntries
+        .map((entry: any) => entry.text)
+        .join(' ');
+    }
+    
+    // For regular notes, use the content
+    return note.content || "";
   };
 
   return (
@@ -298,10 +330,23 @@ const NoteDetail = () => {
       <div className="fixed inset-x-0 bottom-6 z-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <FooterSearchBar value={searchInput} onChange={setSearchInput} placeholder="Ask anything" />
+            <FooterSearchBar 
+              value={searchInput} 
+              onChange={setSearchInput} 
+              onSubmit={handleChatSubmit}
+              placeholder="Ask anything" 
+            />
           </div>
         </div>
       </div>
+
+      {/* Chat Dialog */}
+      <ChatDialog 
+        isOpen={isChatOpen} 
+        onClose={handleChatClose} 
+        initialQuestion={chatQuestion}
+        noteContext={getNoteContext()}
+      />
     </div>
   );
 };
