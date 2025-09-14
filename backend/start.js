@@ -7,8 +7,110 @@ const { callClaudeWithImage, callClaudeWithPrompt } = require('./llm');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Transcript cleaning prompt for Claude
+const TRANSCRIPT_CLEANING_PROMPT = `You are a professional transcript copyeditor. Clean the following raw speech-to-text transcript while preserving the original meaning, order, and speaker intent. Do not summarize, compress, or reorder content. Return ONLY the cleaned transcript—no preface, no bullets, no explanations.
+
+SCOPE OF EDITS
+1) Remove disfluencies:
+   - Delete filler words/phrases when they are not semantically necessary: "um", "uh", "er", "ah", "like", "you know", "I mean", "sort of", "kind of", "basically", "actually", "literally" (when used as filler), "right?" (tag as filler), "so..." (filler), "well," (filler), "okay," (filler), "anyway," (filler), "kinda", "wanna", "gonna" (see normalization below).
+   - Remove repeated words due to stutter: e.g., "the the", "I I I".
+   - Remove false starts that are immediately abandoned: Keep the complete clause and drop the aborted fragment (e.g., "When we— when we started..." → "When we started...").
+   - Remove elongated hesitations and interjections: "mm", "hmm", "uh-huh" (unless they function as clear standalone answers—see Rule 6).
+
+2) Correct obvious misspeaks & ASR misrecognitions:
+   - Fix slips of the tongue where intent is clear: "February 13th—sorry, 15th" → "February 15th".
+   - Correct clearly misheard terms using nearby context (e.g., "sales force" vs. "Salesforce", "Open AI" → "OpenAI").
+   - Preserve domain-specific jargon and proper nouns; capitalize brand, product, person, and place names appropriately.
+   - If a word remains uncertain after best effort, mark it as [unclear] rather than guessing.
+
+3) Light grammar & punctuation polish (no paraphrasing):
+   - Insert commas, periods, and question marks as needed for readability.
+   - Fix evident subject–verb agreement and tense slips when accidental (not stylistic).
+   - Maintain original tone and register. Do NOT elevate style or rewrite for eloquence.
+   - Normalize basic casing and spacing; remove stray punctuation and dangling ellipses unless indicating an interruption.
+
+4) Normalizations (lossless to meaning):
+   - Standardize contractions and colloquialisms per OPTIONS below (default: preserve natural speech: "gonna", "wanna", "kinda" → convert to "going to", "want to", "kind of" only if this improves clarity in context).
+   - Numbers/dates: keep as spoken unless clarity benefits from numerals (e.g., "twenty-five" → "25" in measurements).
+   - Keep profanity as-is; do not censor.
+   - Maintain paragraph breaks at logical sentence boundaries.
+
+5) Speaker labels & timestamps:
+   - If speaker labels exist (e.g., "Speaker 1:"), keep and standardize them consistently (e.g., "Speaker 1", "Speaker 2", etc.). Do not invent new speakers.
+   - If timestamps exist in brackets (e.g., [00:12:03]), keep them attached to the nearest line. Do not add or edit times.
+   - If no labels/timestamps are present, do not create any.
+
+6) Nonverbal & backchannel cues:
+   - Keep meaningful events like [laughter], [applause], [crosstalk], [music] if already present.
+   - Remove non-meaningful backchannels ("uh-huh", "mm-hmm", "yeah" as filler) *unless* they function as clear answers or confirmations in a Q&A exchange; in that case, retain them (e.g., "Yeah." as a direct answer).
+
+7) Content preservation (critical):
+   - Do NOT summarize, shorten, paraphrase, reorder, or add new information.
+   - Do NOT drop technical details, numbers, examples, or lists—even if they sound rambling.
+   - Keep quotations and code snippets verbatim aside from obvious transcription errors and punctuation fixes.
+
+8) Ambiguity handling:
+   - Prefer deletion only when clearly filler. If a word could be semantic ("like" meaning "such as"), keep it.
+   - For overlaps or interrupts, use an em dash (—) to show interruptions if this clarifies readability without changing meaning.
+
+OUTPUT FORMAT
+- Return plain text only (UTF-8). No markdown, no commentary.
+- Preserve existing speaker labels and timestamps if present.
+- Use a single blank line between speaker turns or paragraphs.
+
+OPTIONS (defaults shown; respect if provided by caller)
+- spelling_variant: "auto" | "US" | "UK"  (default: "auto" → follow majority usage in input)
+- contractions: "preserve" | "standardize"  (default: "preserve")
+- colloquialisms_to_standard: true | false  (default: true → "gonna" → "going to" when clarity improves)
+- numerals_threshold: integer  (default: 11 → numbers ≥11 as digits; dates/measures as digits when clearer)
+- keep_backchannels_as_answers: true | false  (default: true)
+- retain_filler_at_rhetorical_effect: true | false  (default: false)
+- uncertainty_tag: "[unclear]"  (default)
+
+PROCESS (internal; do not describe in output)
+1) Pass 1: Remove fillers/stutter/false starts per Rules 1 & 6.
+2) Pass 2: Correct misspeaks/misrecognitions; standardize proper nouns.
+3) Pass 3: Light grammar/punctuation; apply OPTIONS.
+4) Validation: Ensure no content removed beyond defined disfluencies; preserve order; keep labels/timestamps.
+
+BEGIN TRANSCRIPT
+{{TRANSCRIPT_TEXT}}
+END TRANSCRIPT`;
+
 // Enable CORS for all routes
 app.use(cors());
+
+// Helper: derive a stable capture timestamp from filename when available
+// Supports:
+// - photo-2025-09-13T19-45-23-941Z-<...>.jpg  → 2025-09-13T19:45:23.941Z
+// - glass-photo-2025-09-13T19-45-23-941Z-<...>.jpg → 2025-09-13T19:45:23.941Z
+// - photo-1757801999448-<...>.png → epoch ms
+function parseUploadTimeFromFilename(filename, fallbackDate) {
+    try {
+        // Match ISO-like with hyphens in time component
+        // e.g., photo-YYYY-MM-DDTHH-MM-SS-MMMZ-...
+        const isoMatch = filename.match(/photo-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/i)
+            || filename.match(/glass-photo-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/i);
+        if (isoMatch) {
+            const [, ymd, hh, mm, ss, mmm] = isoMatch;
+            const iso = `${ymd}T${hh}:${mm}:${ss}.${mmm}Z`;
+            const d = new Date(iso);
+            if (!isNaN(d.getTime())) return d;
+        }
+
+        // Match epoch-based filename: photo-<epoch(ms|s)>-
+        const epochMatch = filename.match(/photo-(\d{10,13})-/i);
+        if (epochMatch) {
+            const raw = epochMatch[1];
+            const epochMs = raw.length === 13 ? Number(raw) : Number(raw) * 1000;
+            const d = new Date(epochMs);
+            if (!isNaN(d.getTime())) return d;
+        }
+    } catch (_) {
+        // ignore and fall back
+    }
+    return fallbackDate;
+}
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -120,11 +222,15 @@ app.get('/photos', (req, res) => {
         const files = fs.readdirSync(uploadsDir);
         const photos = files
             .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-            .map(file => ({
-                filename: file,
-                path: `/uploads/${file}`,
-                uploadTime: fs.statSync(path.join(uploadsDir, file)).mtime
-            }));
+            .map(file => {
+                const full = path.join(uploadsDir, file);
+                const mtime = fs.statSync(full).mtime;
+                return {
+                    filename: file,
+                    path: `/uploads/${file}`,
+                    uploadTime: parseUploadTimeFromFilename(file, mtime)
+                };
+            });
         
         res.json({ success: true, photos });
     } catch (error) {
@@ -149,12 +255,17 @@ app.get('/glass-photos', (req, res) => {
         const files = fs.readdirSync(glassPhotosDir);
         const photos = files
             .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-            .map(file => ({
-                filename: file,
-                path: `/glass-photos/${file}`,
-                uploadTime: fs.statSync(path.join(glassPhotosDir, file)).mtime,
-                size: fs.statSync(path.join(glassPhotosDir, file)).size
-            }));
+            .map(file => {
+                const full = path.join(glassPhotosDir, file);
+                const stat = fs.statSync(full);
+                const mtime = stat.mtime;
+                return {
+                    filename: file,
+                    path: `/glass-photos/${file}`,
+                    uploadTime: parseUploadTimeFromFilename(file, mtime),
+                    size: stat.size
+                };
+            });
         
         console.log(`Found ${photos.length} photos in Glass folder`);
         res.json({ success: true, photos });

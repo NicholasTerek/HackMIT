@@ -10,7 +10,7 @@ interface PhotoGridProps {
   backendUrl?: string;
 }
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
 export const PhotoGrid = ({ photos, title, isLoading, error, backendUrl = BACKEND_URL }: PhotoGridProps) => {
   if (isLoading) {

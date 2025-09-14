@@ -12,8 +12,8 @@ export interface TranscriptionsResponse {
   message?: string;
 }
 
-// Backend server URL - adjust if your backend runs on a different port
-const BACKEND_URL = 'http://localhost:3001';
+// Backend server URL (configurable via Vite env)
+const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const fetchTranscriptions = async (userId?: string): Promise<Transcription[]> => {
   const url = userId ? `${BACKEND_URL}/transcriptions/${userId}` : `${BACKEND_URL}/transcriptions`;
