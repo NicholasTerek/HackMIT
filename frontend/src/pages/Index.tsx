@@ -86,10 +86,10 @@ const Index = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {generatedNotes.map((note) => (
+              {filteredNotes.filter(note => (note as any).isGenerated).map((note) => (
                 <EnhancedNoteCard
                   key={note.id}
-                  note={note}
+                  note={note as any}
                   onUpdate={updateNote}
                   onDelete={deleteNote}
                 />
@@ -135,7 +135,7 @@ const Index = () => {
                       <span className="font-medium">Add Note</span>
                     </div>
                   </Card>
-                  {manualNotes.map((note) => (
+                  {filteredNotes.filter(note => !(note as any).isGenerated).map((note) => (
                     <NoteCard
                       key={note.id}
                       note={note}
