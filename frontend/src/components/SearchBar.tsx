@@ -13,7 +13,7 @@ export const SearchBar = ({ searchTerm, onSearchChange }: SearchBarProps) => {
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <Input
         type="text"
-        placeholder="Search notes..."
+        placeholder="Search notes... (use 'image: text' to search photo descriptions)"
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         className="pl-10 pr-10 bg-card border-border/50 focus:border-primary/50 transition-colors"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NoteCard } from "@/components/NoteCard";
 import { EnhancedNoteCard } from "@/components/EnhancedNoteCard";
 import { SearchBar } from "@/components/SearchBar";
@@ -31,6 +31,8 @@ const Index = () => {
   const { photos, photosLoading, photosError } = usePhotos();
   const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
   const [searchTerm, setSearchTerm] = useState("");
+  const [filteredNotes, setFilteredNotes] = useState(notes);
+  const [isSearching, setIsSearching] = useState(false);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -42,7 +44,30 @@ const Index = () => {
     setShowQuickCreate(false);
   };
 
-  const filteredNotes = searchNotes(searchTerm);
+  // Handle async search
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchTerm.trim()) {
+        setFilteredNotes(notes);
+        setIsSearching(false);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const results = await searchNotes(searchTerm);
+        setFilteredNotes(results);
+      } catch (error) {
+        console.error('Search error:', error);
+        setFilteredNotes([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(performSearch, 300); // Debounce search
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, notes, searchNotes]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -54,6 +79,12 @@ const Index = () => {
         
         <div className="max-w-xl mx-auto">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+          {isSearching && (
+            <div className="flex items-center justify-center mt-2 text-sm text-muted-foreground">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+              Searching...
+            </div>
+          )}
         </div>
       </section>
 

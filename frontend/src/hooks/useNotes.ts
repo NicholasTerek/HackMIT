@@ -288,10 +288,53 @@ export const useNotes = () => {
     setManualNotes((prev) => prev.filter((note) => note.id !== id));
   };
 
-  const searchNotes = (searchTerm: string) => {
+  const searchNotes = async (searchTerm: string): Promise<EnhancedNote[]> => {
     if (!searchTerm.trim()) return allNotes;
     
     const term = searchTerm.toLowerCase();
+    
+    // Check if search term starts with "image:" prefix
+    if (term.startsWith('image:')) {
+      const imageSearchTerm = term.substring(6).trim(); // Remove "image:" prefix
+      if (!imageSearchTerm) return allNotes;
+      
+      // Filter notes that have photos with descriptions matching the search term
+      const matchingNotes: EnhancedNote[] = [];
+      
+      for (const note of allNotes) {
+        const enhancedNote = note as EnhancedNote;
+        if (!enhancedNote.photos || enhancedNote.photos.length === 0) {
+          continue;
+        }
+        
+        // Check if any photo description contains the search term
+        let hasMatch = false;
+        for (const photo of enhancedNote.photos) {
+          try {
+            // Load photo description from the corresponding .txt file
+            const descriptionPath = photo.path.replace(/\.[^.]+$/, '.txt');
+            const response = await fetch(`http://localhost:3001${descriptionPath}`);
+            if (response.ok) {
+              const description = await response.text();
+              if (description.toLowerCase().includes(imageSearchTerm)) {
+                hasMatch = true;
+                break;
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to load photo description for search:', error);
+          }
+        }
+        
+        if (hasMatch) {
+          matchingNotes.push(enhancedNote);
+        }
+      }
+      
+      return matchingNotes;
+    }
+    
+    // Regular search through title and content
     return allNotes.filter(
       (note) =>
         note.title.toLowerCase().includes(term) ||
