@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Trash2, Save, X, Clock, FileText, Camera, Calendar, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Clock, FileText, Camera, Loader2, ToggleLeft, ToggleRight, Image, Edit2, Trash2, X, Save } from "lucide-react";
 import type { EnhancedNote } from "@/hooks/useNotes";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
+import { createPhotoContextPairs, type PhotoContextPair } from "@/utils/photoContext";
 
 interface EnhancedNoteCardProps {
   note: EnhancedNote;

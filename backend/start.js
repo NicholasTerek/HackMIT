@@ -189,7 +189,7 @@ app.post('/upload', async (req, res) => {
                 mimetype: req.file.mimetype
             });
             
-            const result = await callClaudeWithImage(req.file.path, 'Describe this image.');
+            const result = await callClaudeWithImage(req.file.path, 'Describe this image simply, concisely, and without any additional information. Make sure NOT to include markdown in your response.');
             console.log(result);
             
             // Save Claude description to .txt file with same name as image

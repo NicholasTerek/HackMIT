@@ -8,6 +8,8 @@ import { ToggleLeft, ToggleRight, FileText, Clock, Loader2 } from "lucide-react"
 import FooterSearchBar from "@/components/FooterSearchBar";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
+import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
+import { createPhotoContextPairs, type PhotoContextPair } from "@/utils/photoContext";
 
 const NoteDetail = () => {
   const navigate = useNavigate();
@@ -81,6 +83,7 @@ const NoteDetail = () => {
   const [content, setContent] = useState(note?.content ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [showSummary, setShowSummary] = useState(true);
+  const [photoContextPairs, setPhotoContextPairs] = useState<PhotoContextPair[]>([]);
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -93,6 +96,21 @@ const NoteDetail = () => {
     { maxLength: 200 },
     enhancedNote
   );
+
+  // Load photo context pairs when note changes
+  useEffect(() => {
+    const loadPhotoContext = async () => {
+      if (enhancedNote?.photos && enhancedNote?.transcriptionEntries) {
+        const pairs = await createPhotoContextPairs(
+          enhancedNote.photos,
+          enhancedNote.transcriptionEntries
+        );
+        setPhotoContextPairs(pairs);
+      }
+    };
+    
+    loadPhotoContext();
+  }, [enhancedNote?.photos, enhancedNote?.transcriptionEntries]);
 
   // Keep local state in sync when navigating from the list before notes load
   useEffect(() => {
@@ -217,6 +235,14 @@ const NoteDetail = () => {
                       </div>
                     ))}
                   </div>
+                )}
+                
+                {/* Photo Context Display */}
+                {photoContextPairs.length > 0 && (
+                  <PhotoContextDisplay 
+                    photoContextPairs={photoContextPairs}
+                    className="mt-6"
+                  />
                 )}
               </div>
             ) : content && content.trim().length > 0 && !isLegacyPlaceholder ? (

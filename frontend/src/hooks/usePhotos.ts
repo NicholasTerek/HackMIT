@@ -5,6 +5,7 @@ export interface Photo {
   path: string;
   uploadTime: string;
   size?: number;
+  description?: string; // Claude's image analysis
 }
 
 export interface PhotosResponse {
