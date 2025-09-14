@@ -427,6 +427,48 @@ app.get('/transcriptions/:userId?', (req, res) => {
     }
 });
 
+// Chat endpoint for AI questions
+app.post('/chat', async (req, res) => {
+    console.log('💬 Chat request received');
+    
+    try {
+        const { question, noteContext } = req.body;
+        
+        if (!question || question.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Question is required'
+            });
+        }
+        
+        console.log('Question:', question);
+        console.log('Note context provided:', !!noteContext);
+        
+        // Build the prompt with note context if available
+        let prompt = question;
+        if (noteContext && noteContext.trim()) {
+            prompt = `Based on the following lecture transcript, please answer this question: "${question}"\n\nLecture Transcript:\n${noteContext}`;
+        }
+        
+        // Call Claude with the enhanced prompt
+        const answer = await callClaudeWithPrompt(prompt + "In addition, please remove any form of markdown formatting. This includes asterisks for bolding and italics., as well as hashtags for headings.");
+        
+        console.log('Answer generated successfully');
+        
+        res.json({
+            success: true,
+            answer: answer
+        });
+        
+    } catch (error) {
+        console.error('Error processing chat request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process question'
+        });
+    }
+});
+
 // Basic route
 app.get('/', (req, res) => {
     res.json({ 
@@ -437,7 +479,8 @@ app.get('/', (req, res) => {
             photos: 'GET /photos',
             'glass-photos': 'GET /glass-photos',
             transcription: 'POST /transcription (Teacher notes)',
-            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)'
+            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)',
+            chat: 'POST /chat (AI chat questions)'
         }
     });
 });
