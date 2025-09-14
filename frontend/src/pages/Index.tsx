@@ -1,15 +1,35 @@
 import { useState } from "react";
 import { NoteCard } from "@/components/NoteCard";
+import { EnhancedNoteCard } from "@/components/EnhancedNoteCard";
 import { SearchBar } from "@/components/SearchBar";
+import { PhotoGrid } from "@/components/PhotoGrid";
+import { TranscriptionGrid } from "@/components/TranscriptionGrid";
 import { Card } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useNotes } from "@/hooks/useNotes";
+import { usePhotos } from "@/hooks/usePhotos";
+import { useTranscriptions } from "@/hooks/useTranscriptions";
 
 const Index = () => {
-  const { notes, addNote, updateNote, deleteNote, searchNotes } = useNotes();
+  const { 
+    notes, 
+    manualNotes, 
+    generatedNotes, 
+    addNote, 
+    updateNote, 
+    deleteNote, 
+    searchNotes, 
+    isLoading: notesLoading, 
+    error: notesError, 
+    totalGeneratedNotes, 
+    totalEntries, 
+    totalPhotos 
+  } = useNotes();
+  const { photos, glassPhotos, photosLoading, glassPhotosLoading, photosError, glassPhotosError } = usePhotos();
+  const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
   const [searchTerm, setSearchTerm] = useState("");
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -39,47 +59,116 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 pb-12">
-        {filteredNotes.length === 0 ? (
-          <div className="text-center py-16">
-            {notes.length === 0 ? (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">No notes yet</h2>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Create your first note to get started.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">No notes found</h2>
-                <p className="text-muted-foreground">
-                  Try adjusting your search term or create a new note.
-                </p>
+
+        {/* Smart Notes Section - Primary Content */}
+        <section className="mt-16 space-y-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+            </h2>
+            {totalGeneratedNotes > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {totalGeneratedNotes} notes • {totalEntries} entries • {totalPhotos} photos
               </div>
             )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card
-              className="group relative border-dashed hover:border-solid flex items-center justify-center min-h-[200px] cursor-pointer transition-all bg-muted"
-              onClick={() => setShowQuickCreate(true)}
-            >
-              <div className="flex flex-col items-center text-muted-foreground">
-                <div className="h-10 w-10 rounded-full border flex items-center justify-center mb-2 group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Plus className="h-5 w-5" />
+          
+          {notesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span className="ml-2">Creating smart notes...</span>
+            </div>
+          ) : generatedNotes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No smart notes yet</p>
+              <p className="text-sm">Start recording transcriptions to create your first note!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {generatedNotes.map((note) => (
+                <EnhancedNoteCard
+                  key={note.id}
+                  note={note}
+                  onUpdate={updateNote}
+                  onDelete={deleteNote}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Raw Data Section - Collapsible */}
+        <details className="mt-16">
+          <summary className="cursor-pointer text-lg font-semibold mb-4 hover:text-primary">
+            📊 Raw Data (Manual Notes, Photos & Transcriptions)
+          </summary>
+          <section className="space-y-8 pl-4">
+            {/* Manual Notes */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">✏️ Manual Notes</h3>
+              {manualNotes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No manual notes yet</p>
+                  <Card
+                    className="group relative border-dashed hover:border-solid flex items-center justify-center min-h-[120px] cursor-pointer transition-all bg-muted mt-4 max-w-sm mx-auto"
+                    onClick={() => setShowQuickCreate(true)}
+                  >
+                    <div className="flex flex-col items-center text-muted-foreground">
+                      <div className="h-8 w-8 rounded-full border flex items-center justify-center mb-2 group-hover:bg-primary group-hover:text-white transition-colors">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium text-sm">Add Manual Note</span>
+                    </div>
+                  </Card>
                 </div>
-                <span className="font-medium">Add Note</span>
-              </div>
-            </Card>
-            {filteredNotes.map((note) => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                onUpdate={updateNote}
-                onDelete={deleteNote}
-              />
-            ))}
-          </div>
-        )}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <Card
+                    className="group relative border-dashed hover:border-solid flex items-center justify-center min-h-[200px] cursor-pointer transition-all bg-muted"
+                    onClick={() => setShowQuickCreate(true)}
+                  >
+                    <div className="flex flex-col items-center text-muted-foreground">
+                      <div className="h-10 w-10 rounded-full border flex items-center justify-center mb-2 group-hover:bg-primary group-hover:text-white transition-colors">
+                        <Plus className="h-5 w-5" />
+                      </div>
+                      <span className="font-medium">Add Note</span>
+                    </div>
+                  </Card>
+                  {manualNotes.map((note) => (
+                    <NoteCard
+                      key={note.id}
+                      note={note}
+                      onUpdate={updateNote}
+                      onDelete={deleteNote}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <PhotoGrid
+              photos={photos}
+              title="📷 Uploaded Photos"
+              isLoading={photosLoading}
+              error={photosError}
+            />
+            
+            <PhotoGrid
+              photos={glassPhotos}
+              title="🥽 Glass Photos"
+              isLoading={glassPhotosLoading}
+              error={glassPhotosError}
+            />
+            
+            <TranscriptionGrid
+              transcriptions={transcriptions}
+              title="🎤 Transcriptions"
+              isLoading={transcriptionsLoading}
+              error={transcriptionsError}
+            />
+          </section>
+        </details>
       </main>
       <Dialog open={showQuickCreate} onOpenChange={setShowQuickCreate}>
         <DialogContent className="sm:max-w-[520px] p-0 bg-transparent border-0 shadow-none">
