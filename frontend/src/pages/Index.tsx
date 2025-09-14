@@ -28,7 +28,7 @@ const Index = () => {
     totalEntries, 
     totalPhotos 
   } = useNotes();
-  const { photos, glassPhotos, photosLoading, glassPhotosLoading, photosError, glassPhotosError } = usePhotos();
+  const { photos, photosLoading, photosError } = usePhotos();
   const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
   const [searchTerm, setSearchTerm] = useState("");
   const [showQuickCreate, setShowQuickCreate] = useState(false);
@@ -154,12 +154,6 @@ const Index = () => {
               error={photosError}
             />
             
-            <PhotoGrid
-              photos={glassPhotos}
-              title="🥽 Glass Photos"
-              isLoading={glassPhotosLoading}
-              error={glassPhotosError}
-            />
             
             <TranscriptionGrid
               transcriptions={transcriptions}

@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNotes } from "@/hooks/useNotes";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { ToggleLeft, ToggleRight, FileText, Clock, Loader2 } from "lucide-react";
 import FooterSearchBar from "@/components/FooterSearchBar";
+import { formatTranscriptDuration } from "@/utils/transcriptSummary";
+import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import ChatDialog from "@/components/ChatDialog";
 
 const NoteDetail = () => {
@@ -78,10 +81,21 @@ const NoteDetail = () => {
   const [title, setTitle] = useState(note?.title ?? "Untitled Audio Note");
   const [content, setContent] = useState(note?.content ?? "");
   const [searchInput, setSearchInput] = useState("");
+  const [showSummary, setShowSummary] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
+  
+  // Check if this note has transcriptions
+  const hasTranscriptions = enhancedNote?.transcriptionEntries && enhancedNote.transcriptionEntries.length > 0;
+  
+  // Use async summary hook for Claude API integration
+  const { summary: transcriptSummary, isLoading: summaryLoading } = useAsyncSummary(
+    hasTranscriptions ? enhancedNote.transcriptionEntries : undefined,
+    { maxLength: 200 },
+    enhancedNote
+  );
 
   // Keep local state in sync when navigating from the list before notes load
   useEffect(() => {
@@ -170,9 +184,74 @@ const NoteDetail = () => {
             </audio>
           </div>
 
-          {/* Summary paragraph */}
+          {/* Transcript controls */}
+          {hasTranscriptions && (
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <FileText className="h-4 w-4" />
+                <span>{enhancedNote.transcriptionEntries?.length} transcript entries</span>
+                {enhancedNote.duration && (
+                  <>
+                    <span>•</span>
+                    <Clock className="h-4 w-4" />
+                    <span>{formatTranscriptDuration(enhancedNote.duration)}</span>
+                  </>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSummary(!showSummary)}
+                className="flex items-center gap-2"
+                disabled={summaryLoading}
+              >
+                {summaryLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading AI Summary...
+                  </>
+                ) : showSummary ? (
+                  <>
+                    <ToggleRight className="h-4 w-4" />
+                    Show Summary
+                  </>
+                ) : (
+                  <>
+                    <ToggleLeft className="h-4 w-4" />
+                    Show Full Transcript
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Content display */}
           <div className="p-0 leading-7">
-            {content && content.trim().length > 0 && !isLegacyPlaceholder ? (
+            {hasTranscriptions ? (
+              <div className="space-y-4">
+                {showSummary ? (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border-l-4 border-blue-500">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100">Summary</h3>
+                      {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+                    </div>
+                    <p className="text-blue-800 dark:text-blue-200">{transcriptSummary}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-foreground mb-3">Full Transcript</h3>
+                    {enhancedNote.transcriptionEntries?.map((entry: any, index: number) => (
+                      <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {entry.timestamp.toLocaleString()}
+                        </div>
+                        <div className="text-sm">{entry.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : content && content.trim().length > 0 && !isLegacyPlaceholder ? (
               <p className="whitespace-pre-wrap">{content}</p>
             ) : (
               <PlaceholderDoc />
