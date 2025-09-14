@@ -81,15 +81,37 @@ export const useNotes = () => {
     const text = match[2];
     
     try {
-      const timestamp = new Date(timestampStr);
-      if (isNaN(timestamp.getTime())) return null;
+      // More robust date parsing for different locales and WSL environments
+      let timestamp: Date;
+      
+      // Try parsing as ISO string first (most common format)
+      if (timestampStr.includes('T') && (timestampStr.includes('Z') || timestampStr.includes('+'))) {
+        timestamp = new Date(timestampStr);
+      } else {
+        // Fallback: try parsing with explicit UTC handling
+        timestamp = new Date(timestampStr + (timestampStr.includes('Z') ? '' : 'Z'));
+      }
+      
+      // Additional fallback for different date formats
+      if (isNaN(timestamp.getTime())) {
+        // Try parsing without timezone info and assume UTC
+        const cleanTimestamp = timestampStr.replace(/[^\d\-T:\.]/g, '');
+        timestamp = new Date(cleanTimestamp + 'Z');
+      }
+      
+      // Final validation
+      if (isNaN(timestamp.getTime())) {
+        console.warn(`Failed to parse timestamp: "${timestampStr}" in line: "${line}"`);
+        return null;
+      }
       
       return {
         timestamp,
         text: text.trim(),
         originalLine: line
       };
-    } catch {
+    } catch (error) {
+      console.warn(`Error parsing timestamp: "${timestampStr}"`, error);
       return null;
     }
   };
@@ -97,15 +119,24 @@ export const useNotes = () => {
   // Get all transcription entries from all transcription files
   const getAllTranscriptionEntries = (transcriptions: Transcription[]): TranscriptionEntry[] => {
     const entries: TranscriptionEntry[] = [];
+    let totalLines = 0;
+    let parsedLines = 0;
     
     transcriptions.forEach(transcription => {
       transcription.lines.forEach(line => {
+        totalLines++;
         const entry = parseTranscriptionEntry(line);
         if (entry) {
           entries.push(entry);
+          parsedLines++;
         }
       });
     });
+    
+    console.log(`📊 Transcription parsing: ${parsedLines}/${totalLines} lines parsed successfully`);
+    if (parsedLines === 0 && totalLines > 0) {
+      console.error('🚨 No transcription lines were parsed! Check date format compatibility.');
+    }
     
     // Sort by timestamp
     return entries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
