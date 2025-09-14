@@ -274,17 +274,19 @@ export const useNotes = () => {
 
   // Combine manual and generated notes
   const allNotes = useMemo(() => {
-    // Apply overrides to generated notes if present
-    const generatedWithOverrides: EnhancedNote[] = generatedNotes.map((note) => {
-      const override = generatedNoteOverrides[note.id];
-      if (!override) return note;
-      return {
-        ...note,
-        title: override.title ?? note.title,
-        content: override.content ?? note.content,
-        updatedAt: override.updatedAt ?? note.updatedAt,
-      } as EnhancedNote;
-    });
+    // Apply overrides to generated notes if present and filter deleted ones
+    const generatedWithOverrides: EnhancedNote[] = generatedNotes
+      .filter((note) => !(generatedNoteOverrides[note.id] as any)?.deleted)
+      .map((note) => {
+        const override = generatedNoteOverrides[note.id] as any;
+        if (!override) return note;
+        return {
+          ...note,
+          title: override.title ?? note.title,
+          content: override.content ?? note.content,
+          updatedAt: override.updatedAt ?? note.updatedAt,
+        } as EnhancedNote;
+      });
 
     return [...generatedWithOverrides, ...manualNotes].sort((a, b) => 
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -321,9 +323,15 @@ export const useNotes = () => {
   };
 
   const deleteNote = (id: string) => {
-    // Only allow deleting manual notes, not generated ones
-    if (id.startsWith('generated-')) return;
-    
+    // Allow deleting both manual and generated notes. For generated notes,
+    // mark them as deleted via overrides so they disappear from the list.
+    if (id.startsWith('generated-')) {
+      setGeneratedNoteOverrides((prev) => ({
+        ...prev,
+        [id]: { ...(prev[id] || {}), deleted: true as any, updatedAt: new Date().toISOString() },
+      }));
+      return;
+    }
     setManualNotes((prev) => prev.filter((note) => note.id !== id));
   };
 
