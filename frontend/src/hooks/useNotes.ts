@@ -7,7 +7,7 @@ import type { Transcription } from "./useTranscriptions";
 
 const STORAGE_KEY = "notes-app-data";
 const OVERRIDES_KEY = "notes-app-generated-overrides";
-const SEVEN_MINUTES_MS = 7 * 60 * 1000; // 7 minutes in milliseconds
+const SEVEN_MINUTES_MS = 2 * 60 * 1000; // 2 minutes in milliseconds (changed for demo)
 
 export interface TranscriptionEntry {
   timestamp: Date;
