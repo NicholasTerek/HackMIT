@@ -80,6 +80,7 @@ const NoteDetail = () => {
   const [title, setTitle] = useState(note?.title ?? "Untitled Audio Note");
   const [content, setContent] = useState(note?.content ?? "");
   const [searchInput, setSearchInput] = useState("");
+  const [showSummary, setShowSummary] = useState(true);
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
