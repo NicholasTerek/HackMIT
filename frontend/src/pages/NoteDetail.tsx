@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNotes } from "@/hooks/useNotes";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic } from "lucide-react";
+import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic, MicOff, Square } from "lucide-react";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
@@ -84,6 +84,10 @@ const NoteDetail = () => {
   const [showSummary, setShowSummary] = useState(true);
   const [photoContextPairs, setPhotoContextPairs] = useState<PhotoContextPair[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [finalTranscript, setFinalTranscript] = useState("");
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -97,10 +101,54 @@ const NoteDetail = () => {
     enhancedNote
   );
 
+  // Initialize speech recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognition();
+      
+      recognitionInstance.continuous = true;
+      recognitionInstance.interimResults = true;
+      recognitionInstance.lang = 'en-US';
+      
+      recognitionInstance.onresult = (event) => {
+        let allFinalTranscript = '';
+        let allInterimTranscript = '';
+        
+        // Process all results from the beginning
+        for (let i = 0; i < event.results.length; i++) {
+          const transcriptPart = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            allFinalTranscript += transcriptPart + ' ';
+          } else {
+            allInterimTranscript += transcriptPart;
+          }
+        }
+        
+        // Update states
+        setFinalTranscript(allFinalTranscript);
+        setTranscript(allFinalTranscript + allInterimTranscript);
+        
+        console.log('Speech result - Final:', allFinalTranscript, 'Interim:', allInterimTranscript);
+      };
+      
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognitionInstance.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+      
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
   // Load photo context pairs when note changes
   useEffect(() => {
     const loadPhotoContext = async () => {
-      if (enhancedNote?.photos && enhancedNote?.transcriptionEntries) {
+      if (enhancedNote?.photos && enhancedNote.transcriptionEntries) {
         const pairs = await createPhotoContextPairs(
           enhancedNote.photos,
           enhancedNote.transcriptionEntries
@@ -110,7 +158,7 @@ const NoteDetail = () => {
     };
     
     loadPhotoContext();
-  }, [enhancedNote?.photos, enhancedNote?.transcriptionEntries]);
+  }, [enhancedNote]);
 
   // Keep local state in sync when navigating from the list before notes load
   useEffect(() => {
@@ -140,6 +188,37 @@ const NoteDetail = () => {
 
   const handleChatClose = () => {
     setIsChatOpen(false);
+  };
+
+  const handleVoiceInput = () => {
+    if (!recognition) {
+      alert('Speech recognition is not supported in your browser.');
+      return;
+    }
+
+    if (isListening) {
+      // Second press: stop listening and send transcript
+      recognition.stop();
+      // Wait a moment for final results, then send
+      setTimeout(() => {
+        const fullTranscript = transcript.trim();
+        console.log('Final transcript to send:', fullTranscript);
+        if (fullTranscript) {
+          setIsChatOpen(true);
+        } else {
+          console.log('No transcript to send');
+          // Reset states if no transcript
+          setTranscript("");
+          setFinalTranscript("");
+        }
+      }, 100);
+    } else {
+      // First press: start listening
+      setTranscript("");
+      setFinalTranscript("");
+      setIsListening(true);
+      recognition.start();
+    }
   };
 
   // Extract note context for AI
@@ -314,18 +393,43 @@ const NoteDetail = () => {
       {/* Bottom fade backdrop */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 h-40 z-40 bg-gradient-to-b from-transparent via-neutral-200/60 to-neutral-300/80 dark:via-neutral-900/50 dark:to-neutral-950/80" />
 
+      {/* Transcript display when listening */}
+      {isListening && (
+        <div className="fixed inset-x-0 bottom-24 z-50">
+          <div className="max-w-2xl mx-auto px-4">
+            <div className="bg-white rounded-lg shadow-lg p-4 border">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-gray-700">Listening...</span>
+              </div>
+              <p className="text-gray-900 min-h-[1.5rem]">
+                {transcript || "Start speaking..."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fixed footer microphone button */}
       <div className="fixed inset-x-0 bottom-6 z-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="w-full flex justify-center">
             <button
               type="button"
-              aria-label="Start voice input"
-              title="Start voice input"
-              className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-neutral-900 text-white shadow-md hover:bg-black focus-visible:ring-2 focus-visible:ring-neutral-300 flex items-center justify-center"
-              onClick={() => setIsChatOpen(true)}
+              aria-label={isListening ? "Stop listening and send" : "Start voice input"}
+              title={isListening ? "Stop listening and send" : "Start voice input"}
+              className={`h-14 w-14 md:h-16 md:w-16 rounded-full shadow-md focus-visible:ring-2 focus-visible:ring-neutral-300 flex items-center justify-center transition-all ${
+                isListening 
+                  ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' 
+                  : 'bg-neutral-900 text-white hover:bg-black'
+              }`}
+              onClick={handleVoiceInput}
             >
-              <Mic className="h-6 w-6" strokeWidth={2.25} />
+              {isListening ? (
+                <Square className="h-6 w-6" strokeWidth={2.25} />
+              ) : (
+                <Mic className="h-6 w-6" strokeWidth={2.25} />
+              )}
             </button>
           </div>
         </div>
@@ -335,7 +439,7 @@ const NoteDetail = () => {
       <ChatDialog 
         isOpen={isChatOpen} 
         onClose={handleChatClose} 
-        initialQuestion={""}
+        initialQuestion={transcript}
         noteContext={getNoteContext()}
       />
     </div>
