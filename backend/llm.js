@@ -5,10 +5,11 @@
 const { Anthropic } = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 // Initialize Claude client with your API key (set ANTHROPIC_API_KEY in env)
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.CLAUDE_API_KEY,
 });
 
 /**
@@ -47,7 +48,7 @@ async function callClaudeWithImage(imagePath, prompt) {
 
   // Call Claude's messages API
   const response = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20241022", // or another Claude 3 model
+    model: "claude-sonnet-4-0", // or another Claude 3 model
     max_tokens: 1024,
     messages,
   });
@@ -57,9 +58,9 @@ async function callClaudeWithImage(imagePath, prompt) {
 }
 
 //Example usage:
-(async () => {
-const result = await callClaudeWithImage('./uploads/glass-photo-2025-09-13T19-45-23-941Z-nicholasterek1@gmail.com.jpg', 'Describe this image.');
-console.log(result);
-})();
+//(async () => {
+//const result = await callClaudeWithImage('./uploads/glass-photo-2025-09-13T19-45-23-941Z-nicholasterek1@gmail.com.jpg', 'Describe this image.');
+//console.log(result);
+//})();
 
 module.exports = { callClaudeWithImage };

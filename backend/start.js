@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-
+const { callClaudeWithImage } = require('./llm');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -50,12 +50,12 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Photo upload endpoint with detailed logging
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
     console.log('📸 Upload request received');
     console.log('Headers:', req.headers);
     console.log('Content-Type:', req.get('Content-Type'));
     
-    upload.single('photo')(req, res, (err) => {
+    upload.single('photo')(req, res, async (err) => {
         if (err) {
             console.error('❌ Multer error:', err);
             console.error('Error code:', err.code);
@@ -87,6 +87,9 @@ app.post('/upload', (req, res) => {
                 mimetype: req.file.mimetype
             });
             
+            const result = await callClaudeWithImage(req.file.path, 'Describe this image.');
+            console.log(result);
+
             res.json({
                 success: true,
                 message: 'Photo uploaded successfully',
