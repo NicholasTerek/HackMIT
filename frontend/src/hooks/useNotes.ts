@@ -21,11 +21,12 @@ export interface EnhancedNote extends Note {
   endTime?: Date;
   duration?: number; // in minutes
   isGenerated?: boolean; // true for auto-generated notes from transcriptions
+  transcriptSummary?: string; // cached summary of transcription
 }
 
 export const useNotes = () => {
   const [manualNotes, setManualNotes] = useState<Note[]>([]);
-  const { photos, glassPhotos, isLoading: photosLoading, error: photosError } = usePhotos();
+  const { photos, isLoading: photosLoading, error: photosError } = usePhotos();
   const { transcriptions, isLoading: transcriptionsLoading, error: transcriptionsError } = useTranscriptions();
 
   // Load manual notes from localStorage on mount
@@ -183,12 +184,10 @@ export const useNotes = () => {
   };
 
   // Find photos that fall within the time bounds of a note
-  const getPhotosForTimeRange = (photos: Photo[], startTime: Date, endTime: Date, usedPhotos: Set<string>): Photo[] => {
+  const getPhotosForTimeRange = (photos: Photo[], startTime: Date, endTime: Date): Photo[] => {
     return photos.filter(photo => {
       const photoTime = new Date(photo.uploadTime);
-      const isInTimeRange = photoTime >= startTime && photoTime <= endTime;
-      const isNotUsed = !usedPhotos.has(photo.filename);
-      return isInTimeRange && isNotUsed;
+      return photoTime >= startTime && photoTime <= endTime;
     });
   };
 
@@ -211,8 +210,8 @@ export const useNotes = () => {
   const generatedNotes = useMemo(() => {
     if (transcriptionsLoading || photosLoading) return [];
     
-    // Combine all photos
-    const allPhotos = [...photos, ...glassPhotos];
+    // Use only uploaded photos, not glass photos
+    const allPhotos = [...photos];
     
     // Get all transcription entries
     const allEntries = getAllTranscriptionEntries(transcriptions);
@@ -222,19 +221,13 @@ export const useNotes = () => {
     // Group entries by 7-minute rule
     const entryGroups = groupTranscriptionEntries(allEntries);
     
-    // Track used photos to prevent duplicates
-    const usedPhotos = new Set<string>();
-    
     // Create enhanced notes
     const notes: EnhancedNote[] = entryGroups.map((group, index) => {
       const startTime = group[0].timestamp;
       const endTime = group[group.length - 1].timestamp;
       
-      // Find photos within this time range that haven't been used
-      const notesPhotos = getPhotosForTimeRange(allPhotos, startTime, endTime, usedPhotos);
-      
-      // Mark these photos as used
-      notesPhotos.forEach(photo => usedPhotos.add(photo.filename));
+      // Find all photos within this time range (no limits)
+      const notesPhotos = getPhotosForTimeRange(allPhotos, startTime, endTime);
       
       const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60); // minutes
       const title = generateNoteTitle(group);
@@ -260,7 +253,7 @@ export const useNotes = () => {
     });
     
     return notes.reverse(); // Most recent first
-  }, [photos, glassPhotos, transcriptions, photosLoading, transcriptionsLoading]);
+  }, [photos, transcriptions, photosLoading, transcriptionsLoading]);
 
   // Combine manual and generated notes
   const allNotes = useMemo(() => {

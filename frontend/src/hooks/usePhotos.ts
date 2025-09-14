@@ -25,14 +25,6 @@ const fetchPhotos = async (): Promise<Photo[]> => {
   return data.success ? data.photos : [];
 };
 
-const fetchGlassPhotos = async (): Promise<Photo[]> => {
-  const response = await fetch(`${BACKEND_URL}/glass-photos`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch Glass photos');
-  }
-  const data: PhotosResponse = await response.json();
-  return data.success ? data.photos : [];
-};
 
 export const usePhotos = () => {
   const {
@@ -48,33 +40,15 @@ export const usePhotos = () => {
     retryDelay: 1000
   });
 
-  const {
-    data: glassPhotos = [],
-    isLoading: glassPhotosLoading,
-    error: glassPhotosError,
-    refetch: refetchGlassPhotos
-  } = useQuery({
-    queryKey: ['glass-photos'],
-    queryFn: fetchGlassPhotos,
-    refetchInterval: 5000, // Refetch every 5 seconds like the HTML version
-    retry: 3,
-    retryDelay: 1000
-  });
-
   return {
     photos,
-    glassPhotos,
-    isLoading: photosLoading || glassPhotosLoading,
+    isLoading: photosLoading,
     photosLoading,
-    glassPhotosLoading,
-    error: photosError || glassPhotosError,
+    error: photosError,
     photosError,
-    glassPhotosError,
     refetchPhotos,
-    refetchGlassPhotos,
     refetchAll: () => {
       refetchPhotos();
-      refetchGlassPhotos();
     }
   };
 };

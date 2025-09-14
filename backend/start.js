@@ -389,6 +389,46 @@ app.post('/transcription', async (req, res) => {
     }
 });
 
+// Summarize transcript endpoint
+app.post('/summarize', async (req, res) => {
+    console.log('🤖 Summarization request received');
+    
+    try {
+        const { transcript, maxLength = 150 } = req.body;
+        
+        if (!transcript) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required field: transcript'
+            });
+        }
+        
+        const prompt = `Please provide a concise summary of this transcript in ${maxLength} words or less. Focus on the key points, main topics discussed, and important information. Make it clear and easy to understand for someone with dyslexia.
+
+Transcript:
+${transcript}
+
+Summary:`;
+        
+        const summary = await callClaudeWithPrompt(prompt);
+        
+        console.log(`✅ Summary generated: "${summary.substring(0, 100)}..."`);
+        
+        res.json({
+            success: true,
+            summary: summary.trim()
+        });
+        
+    } catch (error) {
+        console.error('💥 Summarization error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate summary',
+            error: error.message
+        });
+    }
+});
+
 // Get transcriptions for a user (from .log files)
 app.get('/transcriptions/:userId?', (req, res) => {
     try {
@@ -437,7 +477,8 @@ app.get('/', (req, res) => {
             photos: 'GET /photos',
             'glass-photos': 'GET /glass-photos',
             transcription: 'POST /transcription (Teacher notes)',
-            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)'
+            transcriptions: 'GET /transcriptions/:userId (Get transcriptions)',
+            summarize: 'POST /summarize (Generate transcript summaries)'
         }
     });
 });
