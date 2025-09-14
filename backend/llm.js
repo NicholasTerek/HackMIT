@@ -57,10 +57,43 @@ async function callClaudeWithImage(imagePath, prompt) {
   return response.content[0]?.text || '';
 }
 
+/**
+ * Calls Claude LLM with only a text prompt (no image).
+ * @param {string} prompt - The text prompt to send to Claude.
+ * @returns {Promise<string>} - The LLM's response.
+ */
+async function callClaudeWithPrompt(prompt) {
+  // Prepare the message with only text prompt
+  const messages = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt }
+      ]
+    }
+  ];
+
+  // Call Claude's messages API
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-0", // or another Claude 3 model
+    max_tokens: 1024,
+    messages,
+  });
+
+  // Return the LLM's reply text
+  return response.content[0]?.text || '';
+}
+
 //Example usage:
 //(async () => {
 //const result = await callClaudeWithImage('./uploads/glass-photo-2025-09-13T19-45-23-941Z-nicholasterek1@gmail.com.jpg', 'Describe this image.');
 //console.log(result);
 //})();
 
-module.exports = { callClaudeWithImage };
+//Example usage for text-only:
+//(async () => {
+//const result = await callClaudeWithPrompt('Explain quantum computing in simple terms.');
+//console.log(result);
+//})();
+
+module.exports = { callClaudeWithImage, callClaudeWithPrompt };
