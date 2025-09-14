@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNotes } from "@/hooks/useNotes";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ToggleLeft, ToggleRight, FileText, Clock, Loader2 } from "lucide-react";
-import FooterSearchBar from "@/components/FooterSearchBar";
+import { ToggleLeft, ToggleRight, FileText, Clock, Loader2, Mic } from "lucide-react";
 import { formatTranscriptDuration } from "@/utils/transcriptSummary";
 import { useAsyncSummary } from "@/hooks/useAsyncSummary";
 import { PhotoContextDisplay } from "@/components/PhotoContextDisplay";
@@ -82,11 +81,9 @@ const NoteDetail = () => {
 
   const [title, setTitle] = useState(note?.title ?? "Untitled Audio Note");
   const [content, setContent] = useState(note?.content ?? "");
-  const [searchInput, setSearchInput] = useState("");
   const [showSummary, setShowSummary] = useState(true);
   const [photoContextPairs, setPhotoContextPairs] = useState<PhotoContextPair[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatQuestion, setChatQuestion] = useState("");
   const legacyStart = "This is a placeholder summary of the audio note.";
   const isLegacyPlaceholder = (content ?? "").trim().startsWith(legacyStart);
   
@@ -141,17 +138,8 @@ const NoteDetail = () => {
     navigate("/");
   };
 
-  const handleChatSubmit = (question: string) => {
-    if (question.trim()) {
-      setChatQuestion(question.trim());
-      setIsChatOpen(true);
-      setSearchInput(""); // Clear the search input
-    }
-  };
-
   const handleChatClose = () => {
     setIsChatOpen(false);
-    setChatQuestion("");
   };
 
   // Extract note context for AI
@@ -248,12 +236,12 @@ const NoteDetail = () => {
             {hasTranscriptions ? (
               <div className="space-y-4">
                 {showSummary ? (
-                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border-l-4 border-blue-500">
+                  <div className="bg-muted/30 p-4 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-blue-900 dark:text-blue-100">Summary</h3>
-                      {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+                      <h3 className="font-semibold text-foreground">Summary</h3>
+                      {summaryLoading && <Loader2 className="h-4 w-4 animate-spin text-foreground" />}
                     </div>
-                    <p className="text-blue-800 dark:text-blue-200">{transcriptSummary}</p>
+                    <p className="text-foreground">{transcriptSummary}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -323,19 +311,22 @@ const NoteDetail = () => {
 
       </main>
 
-      {/* Bottom fade backdrop to make the search bar pop */}
+      {/* Bottom fade backdrop */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 h-40 z-40 bg-gradient-to-b from-transparent via-neutral-200/60 to-neutral-300/80 dark:via-neutral-900/50 dark:to-neutral-950/80" />
 
-      {/* Fixed footer search bar aligned to page container */}
+      {/* Fixed footer microphone button */}
       <div className="fixed inset-x-0 bottom-6 z-50">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <FooterSearchBar 
-              value={searchInput} 
-              onChange={setSearchInput} 
-              onSubmit={handleChatSubmit}
-              placeholder="Ask anything" 
-            />
+          <div className="w-full flex justify-center">
+            <button
+              type="button"
+              aria-label="Start voice input"
+              title="Start voice input"
+              className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-neutral-900 text-white shadow-md hover:bg-black focus-visible:ring-2 focus-visible:ring-neutral-300 flex items-center justify-center"
+              onClick={() => setIsChatOpen(true)}
+            >
+              <Mic className="h-6 w-6" strokeWidth={2.25} />
+            </button>
           </div>
         </div>
       </div>
@@ -344,7 +335,7 @@ const NoteDetail = () => {
       <ChatDialog 
         isOpen={isChatOpen} 
         onClose={handleChatClose} 
-        initialQuestion={chatQuestion}
+        initialQuestion={""}
         noteContext={getNoteContext()}
       />
     </div>
