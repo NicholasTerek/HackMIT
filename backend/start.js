@@ -10,6 +10,38 @@ const PORT = process.env.PORT || 3001;
 // Enable CORS for all routes
 app.use(cors());
 
+// Helper: derive a stable capture timestamp from filename when available
+// Supports:
+// - photo-2025-09-13T19-45-23-941Z-<...>.jpg  → 2025-09-13T19:45:23.941Z
+// - glass-photo-2025-09-13T19-45-23-941Z-<...>.jpg → 2025-09-13T19:45:23.941Z
+// - photo-1757801999448-<...>.png → epoch ms
+function parseUploadTimeFromFilename(filename, fallbackDate) {
+    try {
+        // Match ISO-like with hyphens in time component
+        // e.g., photo-YYYY-MM-DDTHH-MM-SS-MMMZ-...
+        const isoMatch = filename.match(/photo-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/i)
+            || filename.match(/glass-photo-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/i);
+        if (isoMatch) {
+            const [, ymd, hh, mm, ss, mmm] = isoMatch;
+            const iso = `${ymd}T${hh}:${mm}:${ss}.${mmm}Z`;
+            const d = new Date(iso);
+            if (!isNaN(d.getTime())) return d;
+        }
+
+        // Match epoch-based filename: photo-<epoch(ms|s)>-
+        const epochMatch = filename.match(/photo-(\d{10,13})-/i);
+        if (epochMatch) {
+            const raw = epochMatch[1];
+            const epochMs = raw.length === 13 ? Number(raw) : Number(raw) * 1000;
+            const d = new Date(epochMs);
+            if (!isNaN(d.getTime())) return d;
+        }
+    } catch (_) {
+        // ignore and fall back
+    }
+    return fallbackDate;
+}
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -120,11 +152,15 @@ app.get('/photos', (req, res) => {
         const files = fs.readdirSync(uploadsDir);
         const photos = files
             .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-            .map(file => ({
-                filename: file,
-                path: `/uploads/${file}`,
-                uploadTime: fs.statSync(path.join(uploadsDir, file)).mtime
-            }));
+            .map(file => {
+                const full = path.join(uploadsDir, file);
+                const mtime = fs.statSync(full).mtime;
+                return {
+                    filename: file,
+                    path: `/uploads/${file}`,
+                    uploadTime: parseUploadTimeFromFilename(file, mtime)
+                };
+            });
         
         res.json({ success: true, photos });
     } catch (error) {
@@ -149,12 +185,17 @@ app.get('/glass-photos', (req, res) => {
         const files = fs.readdirSync(glassPhotosDir);
         const photos = files
             .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file))
-            .map(file => ({
-                filename: file,
-                path: `/glass-photos/${file}`,
-                uploadTime: fs.statSync(path.join(glassPhotosDir, file)).mtime,
-                size: fs.statSync(path.join(glassPhotosDir, file)).size
-            }));
+            .map(file => {
+                const full = path.join(glassPhotosDir, file);
+                const stat = fs.statSync(full);
+                const mtime = stat.mtime;
+                return {
+                    filename: file,
+                    path: `/glass-photos/${file}`,
+                    uploadTime: parseUploadTimeFromFilename(file, mtime),
+                    size: stat.size
+                };
+            });
         
         console.log(`Found ${photos.length} photos in Glass folder`);
         res.json({ success: true, photos });
